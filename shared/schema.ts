@@ -1,0 +1,174 @@
+import { sql } from "drizzle-orm";
+import { pgTable, text, varchar, real, integer, jsonb, timestamp } from "drizzle-orm/pg-core";
+import { createInsertSchema } from "drizzle-zod";
+import { z } from "zod";
+
+export const assessments = pgTable("assessments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  // Fabric determinants
+  insulation: text("insulation").notNull().default("standard"),
+  airChanges: text("air_changes").notNull().default("standard"),
+  capacity: text("capacity").notNull().default("high"),
+  exposure: text("exposure").notNull().default("detached"),
+  shape: text("shape").notNull().default("2-storey"),
+  windowSize: text("window_size").notNull().default("standard"),
+  
+  // System determinants
+  heatingFuel: text("heating_fuel").notNull().default("main_gas"),
+  heatingType: text("heating_type").notNull().default("boiler_h_eff"),
+  hotWaterType: text("hot_water_type").notNull().default("main_tank"),
+  controls: jsonb("controls").default("[]"),
+  lightingType: text("lighting_type").notNull().default("0% lel"),
+  ventilationType: text("ventilation_type").notNull().default("nat / wet ext"),
+  renewables: text("renewables").default("none"),
+  
+  // Context determinants
+  climate: text("climate").notNull().default("UK std"),
+  heatingDemand: text("heating_demand").notNull().default("Scot std"),
+  hotWaterDemand: text("hot_water_demand").notNull().default("Scot std"),
+  appliances: text("appliances").notNull().default("standard"),
+  gridIntensity: text("grid_intensity").notNull().default("UK std"),
+  tariff: text("tariff").notNull().default("standard"),
+  capital: text("capital").notNull().default("standard"),
+  
+  // Location-specific data
+  locationId: varchar("location_id"),
+  
+  // Results (calculated)
+  energyDemand: real("energy_demand"),
+  carbonEmissions: real("carbon_emissions"),
+  annualCost: real("annual_cost"),
+  eiScore: integer("ei_score"),
+  
+  createdAt: timestamp("created_at").default(sql`now()`),
+  updatedAt: timestamp("updated_at").default(sql`now()`),
+});
+
+export const locations = pgTable("locations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  country: text("country").notNull(),
+  region: text("region"),
+  
+  // Climate data
+  heatingDegreeDays: real("heating_degree_days").notNull(),
+  solarRadiation: real("solar_radiation").notNull(),
+  averageTemp: real("average_temp").notNull(),
+  windSpeed: real("wind_speed").notNull().default(4.4),
+  
+  // Cost parameters
+  gasCost: real("gas_cost").notNull(), // p/kWh
+  electricityCost: real("electricity_cost").notNull(), // p/kWh
+  oilCost: real("oil_cost").notNull(), // p/litre
+  woodCost: real("wood_cost").notNull(), // £/tonne
+  
+  // Carbon factors
+  gasCarbon: real("gas_carbon").notNull(), // kgCO2/kWh
+  electricityCarbon: real("electricity_carbon").notNull(), // kgCO2/kWh
+  oilCarbon: real("oil_carbon").notNull(), // kgCO2/litre
+  woodCarbon: real("wood_carbon").notNull(), // kgCO2/kg
+  
+  // Regulatory standards
+  buildingStandards: jsonb("building_standards").default("{}"),
+  
+  createdAt: timestamp("created_at").default(sql`now()`),
+  updatedAt: timestamp("updated_at").default(sql`now()`),
+});
+
+export const upgradeRecommendations = pgTable("upgrade_recommendations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  assessmentId: varchar("assessment_id").notNull(),
+  name: text("name").notNull(),
+  description: text("description").notNull(),
+  category: text("category").notNull(), // fabric, system, renewable
+  priority: text("priority").notNull(), // high, medium, low
+  cost: real("cost").notNull(),
+  annualSavings: real("annual_savings").notNull(),
+  carbonSavings: real("carbon_savings").notNull(),
+  paybackYears: real("payback_years").notNull(),
+  energySavings: real("energy_savings").notNull(),
+});
+
+export const insertAssessmentSchema = createInsertSchema(assessments).omit({
+  id: true,
+  energyDemand: true,
+  carbonEmissions: true,
+  annualCost: true,
+  eiScore: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertLocationSchema = createInsertSchema(locations).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertUpgradeRecommendationSchema = createInsertSchema(upgradeRecommendations).omit({
+  id: true,
+});
+
+export type Assessment = typeof assessments.$inferSelect;
+export type InsertAssessment = z.infer<typeof insertAssessmentSchema>;
+export type Location = typeof locations.$inferSelect;
+export type InsertLocation = z.infer<typeof insertLocationSchema>;
+export type UpgradeRecommendation = typeof upgradeRecommendations.$inferSelect;
+export type InsertUpgradeRecommendation = z.infer<typeof insertUpgradeRecommendationSchema>;
+
+// Fabric determinant options
+export const insulationOptions = [
+  { value: "poor", label: "Poor (pre-83)", description: "Building standards prior to 1981" },
+  { value: "standard", label: "Standard (83-02)", description: "1981 Scottish building regulations" },
+  { value: "medium", label: "Medium (03-07)", description: "2002 Scottish building regulations" },
+  { value: "good", label: "Good (post-07)", description: "2007 Scottish building regulations" },
+  { value: "super", label: "Super (Passivhaus)", description: "AECB Gold and Passivhaus guidelines" },
+];
+
+export const airChangesOptions = [
+  { value: "poor", label: "Poor (1.5 ac/h)", description: "Single glazing without draught proofing" },
+  { value: "standard", label: "Standard (0.85 ac/h)", description: "Double glazing or draught proofed single glazing" },
+  { value: "tight", label: "Tight (0.6 ac/h)", description: "2007 standards with extensive draught proofing" },
+];
+
+export const capacityOptions = [
+  { value: "high", label: "High (Heavy construction)", description: "High thermal mass available to occupied space" },
+  { value: "low", label: "Low (Light construction)", description: "Low thermal mass or not available to occupied space" },
+];
+
+export const exposureOptions = [
+  { value: "detached", label: "Detached", description: "All 4 sides exposed" },
+  { value: "semi-detached", label: "Semi-detached", description: "3 sides exposed" },
+  { value: "mid-terrace", label: "Mid-terrace", description: "2 sides exposed" },
+  { value: "flat-g", label: "Flat (ground)", description: "3 sides exposed, roof not exposed" },
+  { value: "flat-t", label: "Flat (top)", description: "3 sides exposed, floor not exposed" },
+  { value: "flat-m", label: "Flat (mid)", description: "3 sides exposed, roof and floor not exposed" },
+];
+
+export const shapeOptions = [
+  { value: "1-storey", label: "1-storey", description: "Single storey dwelling" },
+  { value: "2-storey", label: "2-storey", description: "Two storey dwelling" },
+];
+
+export const heatingFuelOptions = [
+  { value: "main_gas", label: "Main gas", description: "Mains gas supply" },
+  { value: "electricity", label: "Electricity", description: "Grid electricity" },
+  { value: "wood_bio", label: "Wood / Bio", description: "Wood or biomass fuel" },
+  { value: "lpg", label: "LPG / Bottled gas", description: "LPG or bottled gas" },
+  { value: "oil", label: "Oil", description: "Heating oil" },
+  { value: "coal", label: "Coal / Solid fuel", description: "Coal or processed solid fuel" },
+];
+
+export const heatingTypeOptions = [
+  { value: "fires", label: "Fires (room heaters)", description: "Individual room heaters" },
+  { value: "boiler_l_eff", label: "Boiler (low efficiency)", description: "Low efficiency boiler" },
+  { value: "boiler_m_eff", label: "Boiler (medium efficiency)", description: "Medium efficiency boiler" },
+  { value: "boiler_h_eff", label: "Boiler (high efficiency)", description: "High efficiency non-condensing boiler" },
+  { value: "boiler_cond", label: "Boiler (condensing)", description: "Condensing boiler" },
+  { value: "u_chp", label: "Micro CHP", description: "Stirling engine type individual dwelling CHP" },
+  { value: "com_chp", label: "Community CHP", description: "Reciprocating type community CHP system" },
+  { value: "ashp", label: "Air source heat pump", description: "Air source heat pump feeding wet heating system" },
+  { value: "gshp", label: "Ground source heat pump", description: "Ground source heat pump feeding wet heating system" },
+  { value: "storage", label: "Storage heaters", description: "Individual storage type heaters" },
+];
