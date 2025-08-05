@@ -64,30 +64,43 @@ const exposureFactors = {
 };
 
 export function calculateEnergyPerformance(assessment: Assessment, location: Location | null): CalculationResults {
-  // Get basic parameters
-  const uValues = insulationUValues[assessment.insulation as keyof typeof insulationUValues];
-  const airChangeRate = airChangeRates[assessment.airChanges as keyof typeof airChangeRates];
-  const heatingEff = heatingEfficiencies[assessment.heatingType as keyof typeof heatingEfficiencies];
+  // Get basic parameters, handle "none" values
+  const uValues = assessment.insulation && assessment.insulation !== "none" 
+    ? insulationUValues[assessment.insulation as keyof typeof insulationUValues]
+    : { wall: 0, roof: 0, floor: 0, glazing: 0 };
   
-  // Determine dwelling type and floor area
-  const isDwellingFlat = assessment.exposure.startsWith("flat");
+  const airChangeRate = assessment.airChanges && assessment.airChanges !== "none" 
+    ? airChangeRates[assessment.airChanges as keyof typeof airChangeRates] 
+    : 0;
+  
+  const heatingEff = assessment.heatingType && assessment.heatingType !== "none" 
+    ? heatingEfficiencies[assessment.heatingType as keyof typeof heatingEfficiencies] 
+    : 100; // Default efficiency if no heating type specified
+  
+  // Determine dwelling type and floor area, handle "none" values
+  const isDwellingFlat = assessment.exposure && assessment.exposure !== "none" ? assessment.exposure.startsWith("flat") : false;
   const dwellingType = isDwellingFlat ? "flat" : "house";
-  const floorArea = floorAreas[dwellingType][assessment.shape as keyof typeof floorAreas[typeof dwellingType]];
+  const shapeKey = assessment.shape && assessment.shape !== "none" ? assessment.shape : "2-storey";
+  const floorArea = floorAreas[dwellingType][shapeKey as keyof typeof floorAreas[typeof dwellingType]];
   
-  // Heat loss calculation
-  const exposureFactor = exposureFactors[assessment.exposure as keyof typeof exposureFactors];
+  // Heat loss calculation, handle "none" exposure
+  const exposureFactor = assessment.exposure && assessment.exposure !== "none" 
+    ? exposureFactors[assessment.exposure as keyof typeof exposureFactors] 
+    : 1.0;
   
-  // Simplified heat loss calculation (W/K)
-  const wallArea = Math.sqrt(floorArea) * 2.5 * (assessment.shape === "2-storey" ? 2 : 1) * exposureFactor;
+  // Simplified heat loss calculation (W/K) - only calculate if parameters are available
+  const storeys = shapeKey === "2-storey" ? 2 : 1;
+  const wallArea = Math.sqrt(floorArea) * 2.5 * storeys * exposureFactor;
   const roofArea = isDwellingFlat ? 0 : floorArea;
   const floorAreaLoss = isDwellingFlat && assessment.exposure !== "flat-g" ? 0 : floorArea;
   const windowArea = floorArea * 0.175; // 17.5% of floor area
   
-  const wallLoss = wallArea * uValues.wall;
-  const roofLoss = roofArea * uValues.roof;
-  const floorLoss = floorAreaLoss * uValues.floor;
-  const windowLoss = windowArea * uValues.glazing;
-  const ventilationLoss = floorArea * 2.5 * airChangeRate * 0.33; // Simplified ventilation loss
+  // Calculate losses only if U-values are available (not "none")
+  const wallLoss = assessment.insulation !== "none" ? wallArea * uValues.wall : 0;
+  const roofLoss = assessment.insulation !== "none" ? roofArea * uValues.roof : 0;
+  const floorLoss = assessment.insulation !== "none" ? floorAreaLoss * uValues.floor : 0;
+  const windowLoss = assessment.insulation !== "none" ? windowArea * uValues.glazing : 0;
+  const ventilationLoss = assessment.airChanges !== "none" ? floorArea * 2.5 * airChangeRate * 0.33 : 0;
   
   const totalHeatLoss = wallLoss + roofLoss + floorLoss + windowLoss + ventilationLoss;
   
@@ -108,36 +121,42 @@ export function calculateEnergyPerformance(assessment: Assessment, location: Loc
   // Appliances demand
   const appliancesDemand = floorArea * 12; // ~12 kWh/m²/year for appliances
   
-  // Apply heating system efficiency
-  const adjustedSpaceHeating = (spaceHeating * 100) / heatingEff;
-  const adjustedHotWater = (hotWater * 100) / heatingEff;
+  // Apply heating system efficiency - only if heating type is specified
+  const adjustedSpaceHeating = assessment.heatingType !== "none" ? (spaceHeating * 100) / heatingEff : spaceHeating;
+  const adjustedHotWater = assessment.heatingType !== "none" ? (hotWater * 100) / heatingEff : hotWater;
   
   // Total energy demand
   const energyDemand = adjustedSpaceHeating + adjustedHotWater + lightingDemand + appliancesDemand;
   
-  // Carbon emissions calculation
-  const carbonFactor = location?.gasCarbon || 0.184; // Default to gas carbon factor
-  const electricityCarbon = location?.electricityCarbon || 0.233;
+  // Carbon emissions calculation - only if heating fuel is specified
+  let carbonEmissions: number = 0;
   
-  let carbonEmissions: number;
-  if (assessment.heatingFuel === "electricity") {
-    carbonEmissions = energyDemand * electricityCarbon;
-  } else if (assessment.heatingFuel === "oil") {
-    const oilCarbon = location?.oilCarbon || 2.52;
-    carbonEmissions = energyDemand * oilCarbon / 10; // Rough conversion
-  } else {
-    carbonEmissions = energyDemand * carbonFactor;
+  if (assessment.heatingFuel && assessment.heatingFuel !== "none") {
+    const carbonFactor = location?.gasCarbon || 0.184; // Default to gas carbon factor
+    const electricityCarbon = location?.electricityCarbon || 0.233;
+    
+    if (assessment.heatingFuel === "electricity") {
+      carbonEmissions = energyDemand * electricityCarbon;
+    } else if (assessment.heatingFuel === "oil") {
+      const oilCarbon = location?.oilCarbon || 2.52;
+      carbonEmissions = energyDemand * oilCarbon / 10; // Rough conversion
+    } else {
+      carbonEmissions = energyDemand * carbonFactor;
+    }
   }
   
-  // Cost calculation
-  const energyCost = location?.gasCost || 7.2; // Default gas cost in p/kWh
-  const electricityCost = location?.electricityCost || 28.5;
+  // Cost calculation - only if heating fuel is specified
+  let annualCost: number = 0;
   
-  let annualCost: number;
-  if (assessment.heatingFuel === "electricity") {
-    annualCost = (energyDemand * electricityCost) / 100; // Convert pence to pounds
-  } else {
-    annualCost = (energyDemand * energyCost) / 100; // Convert pence to pounds
+  if (assessment.heatingFuel && assessment.heatingFuel !== "none") {
+    const energyCost = location?.gasCost || 7.2; // Default gas cost in p/kWh
+    const electricityCost = location?.electricityCost || 28.5;
+    
+    if (assessment.heatingFuel === "electricity") {
+      annualCost = (energyDemand * electricityCost) / 100; // Convert pence to pounds
+    } else {
+      annualCost = (energyDemand * energyCost) / 100; // Convert pence to pounds
+    }
   }
   
   // EI Score calculation (simplified SAP-based calculation)

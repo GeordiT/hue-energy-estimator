@@ -17,6 +17,7 @@ export default function ContextDeterminants({ assessment, locations, onUpdate }:
   const selectedLocation = locations.find(loc => loc.id === assessment.locationId);
 
   const occupancyTypes = [
+    { value: "none", label: "None" },
     { value: "standard", label: "Standard" },
     { value: "high", label: "High occupancy" },
     { value: "low", label: "Low occupancy" },

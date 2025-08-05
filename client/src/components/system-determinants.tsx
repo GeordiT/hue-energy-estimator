@@ -1,4 +1,4 @@
-import { Assessment, heatingFuelOptions, heatingTypeOptions } from "@shared/schema";
+import { Assessment, heatingFuelOptions, heatingTypeOptions, hotWaterOptions } from "@shared/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
@@ -23,14 +23,6 @@ const heatingEfficiencies = {
   storage: 95,
 };
 
-const hotWaterOptions = [
-  { value: "main_tank", label: "Main tank (integrated)", description: "Main heating source heats hot water in tank" },
-  { value: "main_combi", label: "Main combi", description: "Main heating source provides instant hot water" },
-  { value: "elec_immer", label: "Electric immersion", description: "Separate electric immersion heater" },
-  { value: "inst_gas", label: "Instant gas", description: "Separate gas instant heater" },
-  { value: "inst_elec", label: "Instant electric", description: "Separate electric instant heater" },
-];
-
 const controlsOptions = [
   { value: "thermostatic_radiator_valves", label: "Thermostatic radiator valves" },
   { value: "room_thermostat", label: "Room thermostat" },
@@ -39,8 +31,10 @@ const controlsOptions = [
 ];
 
 export default function SystemDeterminants({ assessment, onUpdate }: SystemDeterminantsProps) {
-  const currentHeatingEff = heatingEfficiencies[assessment.heatingType as keyof typeof heatingEfficiencies];
-  const adjustedEfficiency = Math.round(currentHeatingEff * 0.95); // Simplified adjustment for controls
+  const currentHeatingEff = assessment.heatingType && assessment.heatingType !== "none" 
+    ? heatingEfficiencies[assessment.heatingType as keyof typeof heatingEfficiencies] 
+    : 0;
+  const adjustedEfficiency = assessment.heatingType === "none" ? 0 : Math.round(currentHeatingEff * 0.95); // Simplified adjustment for controls
 
   const handleControlsChange = (controlValue: string, checked: boolean) => {
     const currentControls = Array.isArray(assessment.controls) ? assessment.controls as string[] : [];
@@ -117,11 +111,15 @@ export default function SystemDeterminants({ assessment, onUpdate }: SystemDeter
             <div className="grid grid-cols-2 gap-2 text-xs">
               <div>
                 <span className="text-gray-600">Heff %:</span>
-                <span className="font-mono font-medium ml-1">{currentHeatingEff}</span>
+                <span className="font-mono font-medium ml-1">
+                  {assessment.heatingType === "none" ? "N/A" : currentHeatingEff}
+                </span>
               </div>
               <div>
                 <span className="text-gray-600">Heff Adj %:</span>
-                <span className="font-mono font-medium ml-1">{adjustedEfficiency}</span>
+                <span className="font-mono font-medium ml-1">
+                  {assessment.heatingType === "none" ? "N/A" : adjustedEfficiency}
+                </span>
               </div>
             </div>
           </div>

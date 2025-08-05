@@ -1,4 +1,4 @@
-import { Assessment, insulationOptions, airChangesOptions, capacityOptions, exposureOptions, shapeOptions } from "@shared/schema";
+import { Assessment, insulationOptions, airChangesOptions, capacityOptions, exposureOptions, shapeOptions, windowSizeOptions } from "@shared/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
@@ -34,9 +34,15 @@ const exposureWalls = {
 };
 
 export default function FabricDeterminants({ assessment, onUpdate }: FabricDeterminantsProps) {
-  const currentUValues = insulationUValues[assessment.insulation as keyof typeof insulationUValues];
-  const currentAirChangeRate = airChangeRates[assessment.airChanges as keyof typeof airChangeRates];
-  const currentExtWalls = exposureWalls[assessment.exposure as keyof typeof exposureWalls];
+  const currentUValues = assessment.insulation && assessment.insulation !== "none" 
+    ? insulationUValues[assessment.insulation as keyof typeof insulationUValues] 
+    : { wall: 0, roof: 0, floor: 0, glazing: 0 };
+  const currentAirChangeRate = assessment.airChanges && assessment.airChanges !== "none" 
+    ? airChangeRates[assessment.airChanges as keyof typeof airChangeRates] 
+    : 0;
+  const currentExtWalls = assessment.exposure && assessment.exposure !== "none" 
+    ? exposureWalls[assessment.exposure as keyof typeof exposureWalls] 
+    : 0;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -70,19 +76,27 @@ export default function FabricDeterminants({ assessment, onUpdate }: FabricDeter
             <div className="grid grid-cols-2 gap-2 text-xs">
               <div>
                 <span className="text-gray-600">Wall U:</span>
-                <span className="font-mono font-medium ml-1">{currentUValues.wall}</span>
+                <span className="font-mono font-medium ml-1">
+                  {assessment.insulation === "none" ? "N/A" : currentUValues.wall}
+                </span>
               </div>
               <div>
                 <span className="text-gray-600">Roof U:</span>
-                <span className="font-mono font-medium ml-1">{currentUValues.roof}</span>
+                <span className="font-mono font-medium ml-1">
+                  {assessment.insulation === "none" ? "N/A" : currentUValues.roof}
+                </span>
               </div>
               <div>
                 <span className="text-gray-600">Floor U:</span>
-                <span className="font-mono font-medium ml-1">{currentUValues.floor}</span>
+                <span className="font-mono font-medium ml-1">
+                  {assessment.insulation === "none" ? "N/A" : currentUValues.floor}
+                </span>
               </div>
               <div>
                 <span className="text-gray-600">Glz U:</span>
-                <span className="font-mono font-medium ml-1">{currentUValues.glazing}</span>
+                <span className="font-mono font-medium ml-1">
+                  {assessment.insulation === "none" ? "N/A" : currentUValues.glazing}
+                </span>
               </div>
             </div>
           </div>
@@ -118,8 +132,10 @@ export default function FabricDeterminants({ assessment, onUpdate }: FabricDeter
           <div className="pt-4 border-t border-gray-100">
             <div className="text-xs text-gray-600">
               <span>Current Rate:</span>
-              <span className="font-mono font-medium ml-1">{currentAirChangeRate}</span>
-              <span className="ml-1">ac/h</span>
+              <span className="font-mono font-medium ml-1">
+                {assessment.airChanges === "none" ? "N/A" : currentAirChangeRate}
+              </span>
+              <span className="ml-1">{assessment.airChanges === "none" ? "" : "ac/h"}</span>
             </div>
           </div>
         </CardContent>
@@ -233,21 +249,28 @@ export default function FabricDeterminants({ assessment, onUpdate }: FabricDeter
         </CardHeader>
         <CardContent className="space-y-4">
           <RadioGroup
-            value={assessment.windowSize}
+            value={assessment.windowSize || "standard"}
             onValueChange={(value) => onUpdate({ windowSize: value })}
           >
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="standard" id="windows-standard" />
-              <Label htmlFor="windows-standard" className="text-sm cursor-pointer">
-                Standard (17.5% of floor area)
-              </Label>
-            </div>
+            {windowSizeOptions.map((option) => (
+              <div key={option.value} className="flex items-center space-x-2">
+                <RadioGroupItem value={option.value} id={`window-${option.value}`} />
+                <Label
+                  htmlFor={`window-${option.value}`}
+                  className="text-sm cursor-pointer"
+                >
+                  {option.label}
+                </Label>
+              </div>
+            ))}
           </RadioGroup>
           
           <div className="pt-4 border-t border-gray-100">
             <div className="text-xs text-gray-600">
-              <span>TC ID:</span>
-              <span className="font-mono font-medium ml-1">TC_2485</span>
+              <span>Window Area:</span>
+              <span className="font-mono font-medium ml-1">
+                {assessment.windowSize === "none" ? "N/A" : "17.5% of floor"}
+              </span>
             </div>
           </div>
         </CardContent>

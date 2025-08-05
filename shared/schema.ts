@@ -7,30 +7,30 @@ export const assessments = pgTable("assessments", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
   // Fabric determinants
-  insulation: text("insulation").notNull().default("standard"),
-  airChanges: text("air_changes").notNull().default("standard"),
-  capacity: text("capacity").notNull().default("high"),
-  exposure: text("exposure").notNull().default("detached"),
-  shape: text("shape").notNull().default("2-storey"),
-  windowSize: text("window_size").notNull().default("standard"),
+  insulation: text("insulation").default("standard"),
+  airChanges: text("air_changes").default("standard"),
+  capacity: text("capacity").default("high"),
+  exposure: text("exposure").default("detached"),
+  shape: text("shape").default("2-storey"),
+  windowSize: text("window_size").default("standard"),
   
   // System determinants
-  heatingFuel: text("heating_fuel").notNull().default("main_gas"),
-  heatingType: text("heating_type").notNull().default("boiler_h_eff"),
-  hotWaterType: text("hot_water_type").notNull().default("main_tank"),
+  heatingFuel: text("heating_fuel").default("main_gas"),
+  heatingType: text("heating_type").default("boiler_h_eff"),
+  hotWaterType: text("hot_water_type").default("main_tank"),
   controls: jsonb("controls").default("[]"),
-  lightingType: text("lighting_type").notNull().default("0% lel"),
-  ventilationType: text("ventilation_type").notNull().default("nat / wet ext"),
+  lightingType: text("lighting_type").default("0% lel"),
+  ventilationType: text("ventilation_type").default("nat / wet ext"),
   renewables: text("renewables").default("none"),
   
   // Context determinants
-  climate: text("climate").notNull().default("UK std"),
-  heatingDemand: text("heating_demand").notNull().default("Scot std"),
-  hotWaterDemand: text("hot_water_demand").notNull().default("Scot std"),
-  appliances: text("appliances").notNull().default("standard"),
-  gridIntensity: text("grid_intensity").notNull().default("UK std"),
-  tariff: text("tariff").notNull().default("standard"),
-  capital: text("capital").notNull().default("standard"),
+  climate: text("climate").default("UK std"),
+  heatingDemand: text("heating_demand").default("Scot std"),
+  hotWaterDemand: text("hot_water_demand").default("Scot std"),
+  appliances: text("appliances").default("standard"),
+  gridIntensity: text("grid_intensity").default("UK std"),
+  tariff: text("tariff").default("standard"),
+  capital: text("capital").default("standard"),
   
   // Location-specific data
   locationId: varchar("location_id"),
@@ -119,6 +119,7 @@ export type InsertUpgradeRecommendation = z.infer<typeof insertUpgradeRecommenda
 
 // Fabric determinant options
 export const insulationOptions = [
+  { value: "none", label: "None", description: "Not factored into calculation" },
   { value: "poor", label: "Poor (pre-83)", description: "Building standards prior to 1981" },
   { value: "standard", label: "Standard (83-02)", description: "1981 Scottish building regulations" },
   { value: "medium", label: "Medium (03-07)", description: "2002 Scottish building regulations" },
@@ -127,17 +128,20 @@ export const insulationOptions = [
 ];
 
 export const airChangesOptions = [
+  { value: "none", label: "None", description: "Not factored into calculation" },
   { value: "poor", label: "Poor (1.5 ac/h)", description: "Single glazing without draught proofing" },
   { value: "standard", label: "Standard (0.85 ac/h)", description: "Double glazing or draught proofed single glazing" },
   { value: "tight", label: "Tight (0.6 ac/h)", description: "2007 standards with extensive draught proofing" },
 ];
 
 export const capacityOptions = [
+  { value: "none", label: "None", description: "Not factored into calculation" },
   { value: "high", label: "High (Heavy construction)", description: "High thermal mass available to occupied space" },
   { value: "low", label: "Low (Light construction)", description: "Low thermal mass or not available to occupied space" },
 ];
 
 export const exposureOptions = [
+  { value: "none", label: "None", description: "Not factored into calculation" },
   { value: "detached", label: "Detached", description: "All 4 sides exposed" },
   { value: "semi-detached", label: "Semi-detached", description: "3 sides exposed" },
   { value: "mid-terrace", label: "Mid-terrace", description: "2 sides exposed" },
@@ -147,11 +151,13 @@ export const exposureOptions = [
 ];
 
 export const shapeOptions = [
+  { value: "none", label: "None", description: "Not factored into calculation" },
   { value: "1-storey", label: "1-storey", description: "Single storey dwelling" },
   { value: "2-storey", label: "2-storey", description: "Two storey dwelling" },
 ];
 
 export const heatingFuelOptions = [
+  { value: "none", label: "None", description: "Not factored into calculation" },
   { value: "main_gas", label: "Main gas", description: "Mains gas supply" },
   { value: "electricity", label: "Electricity", description: "Grid electricity" },
   { value: "wood_bio", label: "Wood / Bio", description: "Wood or biomass fuel" },
@@ -161,6 +167,7 @@ export const heatingFuelOptions = [
 ];
 
 export const heatingTypeOptions = [
+  { value: "none", label: "None", description: "Not factored into calculation" },
   { value: "fires", label: "Fires (room heaters)", description: "Individual room heaters" },
   { value: "boiler_l_eff", label: "Boiler (low efficiency)", description: "Low efficiency boiler" },
   { value: "boiler_m_eff", label: "Boiler (medium efficiency)", description: "Medium efficiency boiler" },
@@ -171,4 +178,21 @@ export const heatingTypeOptions = [
   { value: "ashp", label: "Air source heat pump", description: "Air source heat pump feeding wet heating system" },
   { value: "gshp", label: "Ground source heat pump", description: "Ground source heat pump feeding wet heating system" },
   { value: "storage", label: "Storage heaters", description: "Individual storage type heaters" },
+];
+
+// Additional options for hot water and window size
+export const windowSizeOptions = [
+  { value: "none", label: "None", description: "Not factored into calculation" },
+  { value: "small", label: "Small (15%)", description: "Less than 15% glazing" },
+  { value: "standard", label: "Standard (25%)", description: "Around 25% glazing" },
+  { value: "large", label: "Large (35%)", description: "More than 35% glazing" },
+];
+
+export const hotWaterOptions = [
+  { value: "none", label: "None", description: "Not factored into calculation" },
+  { value: "main_tank", label: "Main tank (integrated)", description: "Main heating source heats hot water in tank" },
+  { value: "main_combi", label: "Main combi", description: "Main heating source provides instant hot water" },
+  { value: "elec_immer", label: "Electric immersion", description: "Separate electric immersion heater" },
+  { value: "inst_gas", label: "Instant gas", description: "Separate gas instant heater" },
+  { value: "inst_elec", label: "Instant electric", description: "Separate electric instant heater" },
 ];
