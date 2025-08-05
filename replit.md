@@ -4,6 +4,17 @@
 
 HUE is a comprehensive energy assessment application developed by ESRU at the University of Strathclyde. The system enables users to evaluate and analyze the energy performance of residential buildings through detailed fabric, system, and contextual assessments. It provides energy demand calculations, carbon emissions analysis, and upgrade recommendations to help improve building efficiency.
 
+The application now features full calculation capabilities with real building physics algorithms, customizable location-specific data management, and an intuitive web interface that matches the functionality described in the EDEM manual.
+
+## Recent Changes
+
+### Latest Update (August 2025)
+- **Enhanced Location Management**: Added comprehensive location editor with climate data, energy costs, and carbon factors
+- **Template System**: Integrated regional templates (UK, Northern Europe, Southern Europe) for quick location setup
+- **Real-time Calculations**: Backend calculation engine performs authentic energy performance calculations
+- **User Interface**: Complete EDEM-style interface with fabric, system, context, and results tabs
+- **Data Integrity**: All calculations use authentic building physics principles and real-world parameters
+
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.

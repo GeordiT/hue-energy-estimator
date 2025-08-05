@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import LocationEditor from "./location-editor";
 
 interface SecondaryControlsProps {
   assessment: Assessment;
@@ -189,14 +190,22 @@ export default function SecondaryControls({ assessment, onUpdate }: SecondaryCon
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
+              <LocationEditor 
+                trigger={
+                  <Button variant="outline" size="sm" className="w-full">
+                    Add New Location
+                  </Button>
+                }
+              />
+              <LocationEditor 
+                trigger={
+                  <Button variant="outline" size="sm" className="w-full">
+                    Edit Climate Parameters
+                  </Button>
+                }
+              />
               <Button variant="outline" size="sm" className="w-full">
                 Import Regional Template
-              </Button>
-              <Button variant="outline" size="sm" className="w-full">
-                Edit Climate Parameters
-              </Button>
-              <Button variant="outline" size="sm" className="w-full">
-                Modify Cost Structure
               </Button>
               <Button variant="outline" size="sm" className="w-full">
                 Export Location Data

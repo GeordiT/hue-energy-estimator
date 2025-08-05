@@ -4,7 +4,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Globe, Users, DollarSign, Leaf } from "lucide-react";
+import { Globe, Users, DollarSign, Leaf, Plus, Edit } from "lucide-react";
+import LocationEditor from "./location-editor";
 
 interface ContextDeterminantsProps {
   assessment: Assessment;
@@ -76,9 +77,26 @@ export default function ContextDeterminants({ assessment, locations, onUpdate }:
                   />
                 </div>
               </div>
-              <Button variant="outline" className="w-full">
-                Edit Climate Data
-              </Button>
+              <div className="flex space-x-2">
+                <LocationEditor 
+                  location={selectedLocation} 
+                  trigger={
+                    <Button variant="outline" className="flex-1">
+                      <Edit className="w-4 h-4 mr-2" />
+                      Edit Climate Data
+                    </Button>
+                  }
+                />
+                <LocationEditor 
+                  onLocationCreated={(newLocation) => onUpdate({ locationId: newLocation.id })}
+                  trigger={
+                    <Button variant="outline" className="flex-1">
+                      <Plus className="w-4 h-4 mr-2" />
+                      New Location
+                    </Button>
+                  }
+                />
+              </div>
             </>
           )}
         </CardContent>
@@ -178,9 +196,15 @@ export default function ContextDeterminants({ assessment, locations, onUpdate }:
               </div>
             </>
           )}
-          <Button variant="outline" className="w-full text-secondary border-secondary hover:bg-green-50">
-            Load Regional Pricing Template
-          </Button>
+          <LocationEditor 
+            location={selectedLocation}
+            trigger={
+              <Button variant="outline" className="w-full text-secondary border-secondary hover:bg-green-50">
+                <Edit className="w-4 h-4 mr-2" />
+                Edit Cost Parameters
+              </Button>
+            }
+          />
         </CardContent>
       </Card>
 

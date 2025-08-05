@@ -36,15 +36,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const location = assessment.locationId ? await storage.getLocation(assessment.locationId) : null;
       const results = calculateEnergyPerformance(assessment, location);
       
-      // Update assessment with calculated results
-      const updatedAssessment = await storage.updateAssessment(assessment.id, {
-        energyDemand: results.energyDemand,
-        carbonEmissions: results.carbonEmissions,
-        annualCost: results.annualCost,
-        eiScore: results.eiScore,
-      });
+      // Update assessment with calculated results by directly modifying the assessment object
+      assessment.energyDemand = results.energyDemand;
+      assessment.carbonEmissions = results.carbonEmissions;
+      assessment.annualCost = results.annualCost;
+      assessment.eiScore = results.eiScore;
 
-      res.json(updatedAssessment);
+      res.json(assessment);
     } catch (error) {
       if (error instanceof Error) {
         res.status(400).json({ error: error.message });
@@ -68,14 +66,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const results = calculateEnergyPerformance(assessment, location);
       
       // Update assessment with recalculated results
-      const updatedAssessment = await storage.updateAssessment(assessment.id, {
-        energyDemand: results.energyDemand,
-        carbonEmissions: results.carbonEmissions,
-        annualCost: results.annualCost,
-        eiScore: results.eiScore,
-      });
+      assessment.energyDemand = results.energyDemand;
+      assessment.carbonEmissions = results.carbonEmissions;
+      assessment.annualCost = results.annualCost;
+      assessment.eiScore = results.eiScore;
 
-      res.json(updatedAssessment);
+      res.json(assessment);
     } catch (error) {
       if (error instanceof Error) {
         res.status(400).json({ error: error.message });
@@ -178,7 +174,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/calculate", async (req, res) => {
     try {
       const assessment = req.body.assessment;
-      const location = req.body.locationId ? await storage.getLocation(req.body.locationId) : null;
+      const locationId = req.body.locationId;
+      const location = locationId ? await storage.getLocation(locationId) : null;
       const results = calculateEnergyPerformance(assessment, location);
       res.json(results);
     } catch (error) {
