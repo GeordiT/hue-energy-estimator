@@ -129,25 +129,31 @@ export default function ResultsAnalysis({ assessment, locations }: ResultsAnalys
             <div className="flex justify-between items-center py-2 border-b border-gray-100">
               <span className="text-sm text-gray-600">Space Heating</span>
               <span className="font-mono font-medium">
-                {Math.round((assessment.energyDemand || 0) * 0.7).toLocaleString()} kWh
+                {Math.round((assessment.energyDemand || 0) * 0.45).toLocaleString()} kWh
               </span>
             </div>
             <div className="flex justify-between items-center py-2 border-b border-gray-100">
               <span className="text-sm text-gray-600">Hot Water</span>
               <span className="font-mono font-medium">
-                {Math.round((assessment.energyDemand || 0) * 0.19).toLocaleString()} kWh
+                {Math.round((assessment.energyDemand || 0) * 0.20).toLocaleString()} kWh
+              </span>
+            </div>
+            <div className="flex justify-between items-center py-2 border-b border-gray-100">
+              <span className="text-sm text-gray-600">Space Cooling</span>
+              <span className="font-mono font-medium text-blue-600">
+                {Math.round((assessment.energyDemand || 0) * 0.14).toLocaleString()} kWh
               </span>
             </div>
             <div className="flex justify-between items-center py-2 border-b border-gray-100">
               <span className="text-sm text-gray-600">Lighting</span>
               <span className="font-mono font-medium">
-                {Math.round((assessment.energyDemand || 0) * 0.06).toLocaleString()} kWh
+                {Math.round((assessment.energyDemand || 0) * 0.12).toLocaleString()} kWh
               </span>
             </div>
             <div className="flex justify-between items-center py-2 border-b border-gray-100">
               <span className="text-sm text-gray-600">Appliances</span>
               <span className="font-mono font-medium">
-                {Math.round((assessment.energyDemand || 0) * 0.05).toLocaleString()} kWh
+                {Math.round((assessment.energyDemand || 0) * 0.09).toLocaleString()} kWh
               </span>
             </div>
             <div className="flex justify-between items-center py-2 font-semibold">
