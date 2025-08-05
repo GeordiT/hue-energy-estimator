@@ -7,11 +7,13 @@ export interface CalculationResults {
   eiScore: number;
   spaceHeating: number;
   hotWater: number;
+  cooling: number;
   lighting: number;
   appliances: number;
   breakdown: {
     spaceHeating: number;
     hotWater: number;
+    cooling: number;
     lighting: number;
     appliances: number;
   };
@@ -110,6 +112,10 @@ export function calculateEnergyPerformance(assessment: Assessment, location: Loc
   // Calculate space heating demand (kWh/year)
   const spaceHeating = (totalHeatLoss * heatingDegreeDays * 24) / 1000; // Convert W to kWh
   
+  // Cooling demand calculation based on cooling degree days
+  const coolingDegreeDays = location?.coolingDegreeDays || 0;
+  const coolingDemand = coolingDegreeDays > 0 ? (coolingDegreeDays * floorArea * 0.025) : 0; // kWh/year
+  
   // Hot water demand (simplified calculation)
   const hotWater = floorArea * 25; // ~25 kWh/m²/year for hot water
   
@@ -125,8 +131,8 @@ export function calculateEnergyPerformance(assessment: Assessment, location: Loc
   const adjustedSpaceHeating = assessment.heatingType !== "none" ? (spaceHeating * 100) / heatingEff : spaceHeating;
   const adjustedHotWater = assessment.heatingType !== "none" ? (hotWater * 100) / heatingEff : hotWater;
   
-  // Total energy demand
-  const energyDemand = adjustedSpaceHeating + adjustedHotWater + lightingDemand + appliancesDemand;
+  // Total energy demand (including cooling)
+  const energyDemand = adjustedSpaceHeating + adjustedHotWater + coolingDemand + lightingDemand + appliancesDemand;
   
   // Carbon emissions calculation - only if heating fuel is specified
   let carbonEmissions: number = 0;
@@ -170,11 +176,13 @@ export function calculateEnergyPerformance(assessment: Assessment, location: Loc
     eiScore: Math.round(eiScore),
     spaceHeating: Math.round(adjustedSpaceHeating),
     hotWater: Math.round(adjustedHotWater),
+    cooling: Math.round(coolingDemand),
     lighting: Math.round(lightingDemand),
     appliances: Math.round(appliancesDemand),
     breakdown: {
       spaceHeating: Math.round(adjustedSpaceHeating),
       hotWater: Math.round(adjustedHotWater),
+      cooling: Math.round(coolingDemand),
       lighting: Math.round(lightingDemand),
       appliances: Math.round(appliancesDemand),
     },

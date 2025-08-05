@@ -11,7 +11,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { Globe, Thermometer, DollarSign, Leaf, Plus, Edit } from "lucide-react";
+import { Globe, Thermometer, DollarSign, Leaf, Plus, Edit, Calculator } from "lucide-react";
+import DegreeDaysCalculator from "./degree-days-calculator";
 
 interface LocationEditorProps {
   location?: Location;
@@ -127,6 +128,7 @@ export default function LocationEditor({ location, onLocationCreated, trigger }:
     const templates = {
       uk: {
         heatingDegreeDays: 2650,
+        coolingDegreeDays: 25,
         solarRadiation: 950,
         averageTemp: 8.5,
         windSpeed: 4.4,
@@ -141,6 +143,7 @@ export default function LocationEditor({ location, onLocationCreated, trigger }:
       },
       northern_europe: {
         heatingDegreeDays: 3200,
+        coolingDegreeDays: 10,
         solarRadiation: 850,
         averageTemp: 6.2,
         windSpeed: 5.1,
@@ -155,6 +158,7 @@ export default function LocationEditor({ location, onLocationCreated, trigger }:
       },
       southern_europe: {
         heatingDegreeDays: 1800,
+        coolingDegreeDays: 450,
         solarRadiation: 1400,
         averageTemp: 14.5,
         windSpeed: 3.2,
@@ -276,6 +280,19 @@ export default function LocationEditor({ location, onLocationCreated, trigger }:
                   />
                   <FormField
                     control={form.control}
+                    name="coolingDegreeDays"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Cooling Degree Days</FormLabel>
+                        <FormControl>
+                          <Input type="number" {...field} onChange={e => field.onChange(Number(e.target.value))} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
                     name="solarRadiation"
                     render={({ field }) => (
                       <FormItem>
@@ -324,6 +341,22 @@ export default function LocationEditor({ location, onLocationCreated, trigger }:
                   <Button type="button" variant="outline" size="sm" onClick={() => loadTemplate('southern_europe')}>
                     Load Southern Europe
                   </Button>
+                  <DegreeDaysCalculator 
+                    onResult={(heatingDD, coolingDD) => {
+                      form.setValue('heatingDegreeDays', heatingDD);
+                      form.setValue('coolingDegreeDays', coolingDD);
+                      toast({
+                        title: "Degree days updated",
+                        description: `HDD: ${heatingDD}, CDD: ${coolingDD}`,
+                      });
+                    }}
+                    trigger={
+                      <Button type="button" variant="outline" size="sm">
+                        <Calculator className="w-4 h-4 mr-2" />
+                        Calculate from Temperature Data
+                      </Button>
+                    }
+                  />
                 </div>
               </CardContent>
             </Card>

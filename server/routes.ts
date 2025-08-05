@@ -183,6 +183,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Degree Days Calculator API endpoint
+  app.post("/api/calculate-degree-days", async (req, res) => {
+    try {
+      const { dailyHighs, dailyLows, baseTemp = 18.3 } = req.body;
+      
+      if (!Array.isArray(dailyHighs) || !Array.isArray(dailyLows)) {
+        return res.status(400).json({ error: "dailyHighs and dailyLows must be arrays" });
+      }
+      
+      if (dailyHighs.length !== dailyLows.length) {
+        return res.status(400).json({ error: "dailyHighs and dailyLows arrays must have the same length" });
+      }
+      
+      // Calculate degree days using weather.gov methodology
+      let heatingDD = 0;
+      let coolingDD = 0;
+      
+      for (let i = 0; i < dailyHighs.length; i++) {
+        const dailyMean = (dailyHighs[i] + dailyLows[i]) / 2;
+        
+        if (dailyMean < baseTemp) {
+          heatingDD += baseTemp - dailyMean;
+        } else if (dailyMean > baseTemp) {
+          coolingDD += dailyMean - baseTemp;
+        }
+      }
+      
+      res.json({
+        heatingDegreeDays: Math.round(heatingDD),
+        coolingDegreeDays: Math.round(coolingDD),
+        daysCalculated: dailyHighs.length,
+        baseTemperature: baseTemp
+      });
+    } catch (error) {
+      console.error('Degree days calculation error:', error);
+      res.status(500).json({ error: "Failed to calculate degree days" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

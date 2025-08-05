@@ -53,6 +53,7 @@ export const locations = pgTable("locations", {
   
   // Climate data
   heatingDegreeDays: real("heating_degree_days").notNull(),
+  coolingDegreeDays: real("cooling_degree_days").notNull().default(0),
   solarRadiation: real("solar_radiation").notNull(),
   averageTemp: real("average_temp").notNull(),
   windSpeed: real("wind_speed").notNull().default(4.4),

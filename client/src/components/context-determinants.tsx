@@ -69,10 +69,30 @@ export default function ContextDeterminants({ assessment, locations, onUpdate }:
                   />
                 </div>
                 <div>
+                  <Label className="text-sm font-medium text-gray-700 mb-1">Cooling Degree Days</Label>
+                  <Input
+                    type="number"
+                    value={selectedLocation.coolingDegreeDays}
+                    readOnly
+                    className="bg-gray-50"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
                   <Label className="text-sm font-medium text-gray-700 mb-1">Solar Radiation (kWh/m²)</Label>
                   <Input
                     type="number"
                     value={selectedLocation.solarRadiation}
+                    readOnly
+                    className="bg-gray-50"
+                  />
+                </div>
+                <div>
+                  <Label className="text-sm font-medium text-gray-700 mb-1">Average Temperature (°C)</Label>
+                  <Input
+                    type="number"
+                    value={selectedLocation.averageTemp}
                     readOnly
                     className="bg-gray-50"
                   />
