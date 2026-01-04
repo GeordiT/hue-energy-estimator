@@ -8,7 +8,12 @@ The application now features full calculation capabilities with real building ph
 
 ## Recent Changes
 
-### Latest Update (August 2025)
+### Latest Update (January 2026)
+- **Scenario Comparison (Phase 2)**: Clone assessments with POST /api/assessments/:id/clone, compare two scenarios side-by-side with Recharts bar/line charts, payback period calculator with ROI logic
+- **Financial Reporting (Phase 3)**: Break-even visualization showing cumulative savings vs capital cost, print-style CSS with @media print rules for Energy Passport PDF export
+- **Typed DTOs**: Comparison API returns sanitized {baseline, upgrade, comparison} structure with calculated metrics
+
+### Previous Update (August 2025)
 - **Enhanced Location Management**: Added comprehensive location editor with climate data, energy costs, and carbon factors
 - **Template System**: Integrated regional templates (UK, Northern Europe, Southern Europe) for quick location setup
 - **Real-time Calculations**: Backend calculation engine performs authentic energy performance calculations
