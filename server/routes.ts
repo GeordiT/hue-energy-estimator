@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertAssessmentSchema, insertLocationSchema, insertUpgradeRecommendationSchema } from "@shared/schema";
+import { insertAssessmentSchema, insertLocationSchema, insertUpgradeRecommendationSchema, calculationOptionsSchema } from "@shared/schema";
 import { calculateEnergyPerformance } from "../client/src/lib/calculation-engine";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -32,9 +32,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validatedData = insertAssessmentSchema.parse(req.body);
       const assessment = await storage.createAssessment(validatedData);
       
-      // Calculate performance metrics
+      // Calculate performance metrics with future year projection if specified
       const location = assessment.locationId ? await storage.getLocation(assessment.locationId) : null;
-      const results = calculateEnergyPerformance(assessment, location);
+      const options = assessment.futureYear ? { futureYear: assessment.futureYear } : undefined;
+      const results = calculateEnergyPerformance(assessment, location, options);
       
       // Update assessment with calculated results by directly modifying the assessment object
       assessment.energyDemand = results.energyDemand;
@@ -42,7 +43,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       assessment.annualCost = results.annualCost;
       assessment.eiScore = results.eiScore;
 
-      res.json(assessment);
+      res.json({ ...assessment, formFactor: results.formFactor, projectedYear: results.projectedYear, adjustedElectricityCarbon: results.adjustedElectricityCarbon });
     } catch (error) {
       if (error instanceof Error) {
         res.status(400).json({ error: error.message });
@@ -61,9 +62,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Assessment not found" });
       }
 
-      // Recalculate performance metrics
+      // Recalculate performance metrics with future year projection if specified
       const location = assessment.locationId ? await storage.getLocation(assessment.locationId) : null;
-      const results = calculateEnergyPerformance(assessment, location);
+      const options = assessment.futureYear ? { futureYear: assessment.futureYear } : undefined;
+      const results = calculateEnergyPerformance(assessment, location, options);
       
       // Update assessment with recalculated results
       assessment.energyDemand = results.energyDemand;
@@ -71,7 +73,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       assessment.annualCost = results.annualCost;
       assessment.eiScore = results.eiScore;
 
-      res.json(assessment);
+      res.json({ ...assessment, formFactor: results.formFactor, projectedYear: results.projectedYear, adjustedElectricityCarbon: results.adjustedElectricityCarbon });
     } catch (error) {
       if (error instanceof Error) {
         res.status(400).json({ error: error.message });
@@ -170,16 +172,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Calculate performance endpoint
+  // Calculate performance endpoint with optional future year projection
   app.post("/api/calculate", async (req, res) => {
     try {
       const assessment = req.body.assessment;
       const locationId = req.body.locationId;
+      const rawOptions = req.body.options;
+      
+      // Validate calculation options if provided
+      const options = rawOptions ? calculationOptionsSchema.parse(rawOptions) : undefined;
+      
       const location = locationId ? await storage.getLocation(locationId) : null;
-      const results = calculateEnergyPerformance(assessment, location);
+      const results = calculateEnergyPerformance(assessment, location, options);
       res.json(results);
     } catch (error) {
-      res.status(500).json({ error: "Failed to calculate performance" });
+      if (error instanceof Error) {
+        res.status(400).json({ error: error.message });
+      } else {
+        res.status(500).json({ error: "Failed to calculate performance" });
+      }
     }
   });
 

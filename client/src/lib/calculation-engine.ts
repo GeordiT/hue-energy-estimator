@@ -1,5 +1,11 @@
 import { Assessment, Location } from "@shared/schema";
 
+export interface CalculationOptions {
+  futureYear?: number; // Year for grid decarbonization projection
+  baseYear?: number; // Reference year for carbon factors (default 2024)
+  decarbonizationRate?: number; // Annual reduction rate (default 0.03 = 3%)
+}
+
 export interface CalculationResults {
   energyDemand: number;
   carbonEmissions: number;
@@ -17,6 +23,9 @@ export interface CalculationResults {
     lighting: number;
     appliances: number;
   };
+  formFactor?: number; // Exposed for debugging/display
+  projectedYear?: number; // If future year calculation was used
+  adjustedElectricityCarbon?: number; // Adjusted carbon factor if future year
 }
 
 // U-value lookup tables based on insulation level
@@ -55,17 +64,55 @@ const floorAreas = {
   flat: { "1-storey": 71, "2-storey": 71 },
 };
 
-// Exposure factors for heat loss
-const exposureFactors = {
-  detached: 1.0,
-  "semi-detached": 0.85,
-  "mid-terrace": 0.7,
-  "flat-g": 0.8,
-  "flat-t": 0.8,
-  "flat-m": 0.6,
+// Form Factor coefficients for heat loss surface area calculation
+// Based on building geometry: ratio of heat loss surface to floor area
+const shapeFormFactors = {
+  "1-storey": 1.8,  // Bungalow: larger roof area relative to floor
+  "2-storey": 1.4,  // Standard 2-storey: more compact form
+  "3-storey": 1.2,  // 3-storey: even more compact
+  "none": 1.5,      // Default mid-range
 };
 
-export function calculateEnergyPerformance(assessment: Assessment, location: Location | null): CalculationResults {
+// Exposure adjustment multipliers (percentage of envelope exposed)
+const exposureFormAdjustments = {
+  detached: 1.0,        // 100% - all surfaces exposed
+  "semi-detached": 0.82, // ~82% - one party wall
+  "mid-terrace": 0.65,   // ~65% - two party walls
+  "flat-g": 0.55,        // Ground flat: no roof exposure, floor exposed
+  "flat-t": 0.55,        // Top flat: roof exposed, no floor exposure
+  "flat-m": 0.40,        // Mid flat: no roof or floor exposure
+  "none": 0.85,          // Default mid-range
+};
+
+// Calculate adjusted electricity carbon factor for future year projections
+export function calculateFutureElectricityCarbon(
+  baseCarbon: number,
+  options?: CalculationOptions
+): number {
+  if (!options?.futureYear) return baseCarbon;
+  
+  const baseYear = options.baseYear || 2024;
+  const decarbRate = options.decarbonizationRate || 0.03; // 3% per year default
+  const yearsFromBase = Math.max(0, options.futureYear - baseYear);
+  
+  // Linear decarbonization: reduce by rate per year
+  const reductionFactor = Math.max(0.1, 1 - (decarbRate * yearsFromBase)); // Floor at 10%
+  return baseCarbon * reductionFactor;
+}
+
+// Calculate the effective Form Factor based on shape and exposure
+export function calculateFormFactor(shape: string, exposure: string): number {
+  const shapeFactor = shapeFormFactors[shape as keyof typeof shapeFormFactors] || shapeFormFactors["none"];
+  const exposureAdj = exposureFormAdjustments[exposure as keyof typeof exposureFormAdjustments] || exposureFormAdjustments["none"];
+  
+  return shapeFactor * exposureAdj;
+}
+
+export function calculateEnergyPerformance(
+  assessment: Assessment, 
+  location: Location | null,
+  options?: CalculationOptions
+): CalculationResults {
   // Get basic parameters, handle "none" values
   const uValues = assessment.insulation && assessment.insulation !== "none" 
     ? insulationUValues[assessment.insulation as keyof typeof insulationUValues]
@@ -85,26 +132,31 @@ export function calculateEnergyPerformance(assessment: Assessment, location: Loc
   const shapeKey = assessment.shape && assessment.shape !== "none" ? assessment.shape : "2-storey";
   const floorArea = floorAreas[dwellingType][shapeKey as keyof typeof floorAreas[typeof dwellingType]];
   
-  // Heat loss calculation, handle "none" exposure
-  const exposureFactor = assessment.exposure && assessment.exposure !== "none" 
-    ? exposureFactors[assessment.exposure as keyof typeof exposureFactors] 
-    : 1.0;
+  // Calculate Form Factor for heat loss surface area
+  const exposureKey = assessment.exposure && assessment.exposure !== "none" ? assessment.exposure : "none";
+  const formFactor = calculateFormFactor(shapeKey, exposureKey);
   
-  // Simplified heat loss calculation (W/K) - only calculate if parameters are available
-  const storeys = shapeKey === "2-storey" ? 2 : 1;
-  const wallArea = Math.sqrt(floorArea) * 2.5 * storeys * exposureFactor;
-  const roofArea = isDwellingFlat ? 0 : floorArea;
-  const floorAreaLoss = isDwellingFlat && assessment.exposure !== "flat-g" ? 0 : floorArea;
-  const windowArea = floorArea * 0.175; // 17.5% of floor area
+  // Effective heat loss surface area using Form Factor approach
+  // Form Factor = heat loss surface area / floor area
+  const effectiveHeatLossSurface = floorArea * formFactor;
   
-  // Calculate losses only if U-values are available (not "none")
-  const wallLoss = assessment.insulation !== "none" ? wallArea * uValues.wall : 0;
-  const roofLoss = assessment.insulation !== "none" ? roofArea * uValues.roof : 0;
-  const floorLoss = assessment.insulation !== "none" ? floorAreaLoss * uValues.floor : 0;
-  const windowLoss = assessment.insulation !== "none" ? windowArea * uValues.glazing : 0;
-  const ventilationLoss = assessment.airChanges !== "none" ? floorArea * 2.5 * airChangeRate * 0.33 : 0;
+  // Calculate average U-value for the envelope
+  const windowFraction = assessment.windowSize === "large" ? 0.35 : 
+                         assessment.windowSize === "small" ? 0.15 : 0.25;
+  const opaqueFraction = 1 - windowFraction;
   
-  const totalHeatLoss = wallLoss + roofLoss + floorLoss + windowLoss + ventilationLoss;
+  // Weighted average U-value for opaque elements (walls, roof, floor)
+  const avgOpaqueU = (uValues.wall * 0.5 + uValues.roof * 0.25 + uValues.floor * 0.25);
+  const avgEnvelopeU = (avgOpaqueU * opaqueFraction) + (uValues.glazing * windowFraction);
+  
+  // Fabric heat loss using Form Factor (W/K)
+  const fabricLoss = assessment.insulation !== "none" ? effectiveHeatLossSurface * avgEnvelopeU : 0;
+  
+  // Ventilation heat loss (W/K) = Volume × Air change rate × specific heat capacity of air
+  const volume = floorArea * 2.5; // Assume 2.5m ceiling height
+  const ventilationLoss = assessment.airChanges !== "none" ? volume * airChangeRate * 0.33 : 0;
+  
+  const totalHeatLoss = fabricLoss + ventilationLoss;
   
   // Use location heating degree days or default
   const heatingDegreeDays = location?.heatingDegreeDays || 2650;
@@ -136,13 +188,16 @@ export function calculateEnergyPerformance(assessment: Assessment, location: Loc
   
   // Carbon emissions calculation - only if heating fuel is specified
   let carbonEmissions: number = 0;
+  const baseElectricityCarbon = location?.electricityCarbon || 0.233;
+  
+  // Apply future year decarbonization projection if specified
+  const adjustedElectricityCarbon = calculateFutureElectricityCarbon(baseElectricityCarbon, options);
   
   if (assessment.heatingFuel && assessment.heatingFuel !== "none") {
     const carbonFactor = location?.gasCarbon || 0.184; // Default to gas carbon factor
-    const electricityCarbon = location?.electricityCarbon || 0.233;
     
     if (assessment.heatingFuel === "electricity") {
-      carbonEmissions = energyDemand * electricityCarbon;
+      carbonEmissions = energyDemand * adjustedElectricityCarbon;
     } else if (assessment.heatingFuel === "oil") {
       const oilCarbon = location?.oilCarbon || 2.52;
       carbonEmissions = energyDemand * oilCarbon / 10; // Rough conversion
@@ -186,6 +241,11 @@ export function calculateEnergyPerformance(assessment: Assessment, location: Loc
       lighting: Math.round(lightingDemand),
       appliances: Math.round(appliancesDemand),
     },
+    formFactor: Math.round(formFactor * 100) / 100,
+    projectedYear: options?.futureYear,
+    adjustedElectricityCarbon: options?.futureYear 
+      ? Math.round(adjustedElectricityCarbon * 1000) / 1000 
+      : undefined,
   };
 }
 

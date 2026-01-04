@@ -3,17 +3,17 @@ import { randomUUID } from "crypto";
 
 export interface IStorage {
   // Assessment operations
-  getAssessment(id: string): Promise<Assessment | undefined>;
+  getAssessment(id: string): Promise<Assessment | null>;
   getAllAssessments(): Promise<Assessment[]>;
   createAssessment(assessment: InsertAssessment): Promise<Assessment>;
-  updateAssessment(id: string, assessment: Partial<InsertAssessment>): Promise<Assessment | undefined>;
+  updateAssessment(id: string, assessment: Partial<InsertAssessment>): Promise<Assessment | null>;
   deleteAssessment(id: string): Promise<boolean>;
   
   // Location operations
-  getLocation(id: string): Promise<Location | undefined>;
+  getLocation(id: string): Promise<Location | null>;
   getAllLocations(): Promise<Location[]>;
   createLocation(location: InsertLocation): Promise<Location>;
-  updateLocation(id: string, location: Partial<InsertLocation>): Promise<Location | undefined>;
+  updateLocation(id: string, location: Partial<InsertLocation>): Promise<Location | null>;
   deleteLocation(id: string): Promise<boolean>;
   
   // Upgrade recommendation operations
@@ -99,8 +99,8 @@ export class MemStorage implements IStorage {
   }
 
   // Assessment operations
-  async getAssessment(id: string): Promise<Assessment | undefined> {
-    return this.assessments.get(id);
+  async getAssessment(id: string): Promise<Assessment | null> {
+    return this.assessments.get(id) ?? null;
   }
 
   async getAllAssessments(): Promise<Assessment[]> {
@@ -110,8 +110,31 @@ export class MemStorage implements IStorage {
   async createAssessment(insertAssessment: InsertAssessment): Promise<Assessment> {
     const id = randomUUID();
     const assessment: Assessment = {
-      ...insertAssessment,
       id,
+      name: insertAssessment.name,
+      version: insertAssessment.version ?? 1,
+      insulation: insertAssessment.insulation ?? "standard",
+      airChanges: insertAssessment.airChanges ?? "standard",
+      capacity: insertAssessment.capacity ?? "high",
+      exposure: insertAssessment.exposure ?? "detached",
+      shape: insertAssessment.shape ?? "2-storey",
+      windowSize: insertAssessment.windowSize ?? "standard",
+      heatingFuel: insertAssessment.heatingFuel ?? "main_gas",
+      heatingType: insertAssessment.heatingType ?? "boiler_h_eff",
+      hotWaterType: insertAssessment.hotWaterType ?? "main_tank",
+      controls: insertAssessment.controls ?? [],
+      lightingType: insertAssessment.lightingType ?? "0% lel",
+      ventilationType: insertAssessment.ventilationType ?? "nat / wet ext",
+      renewables: insertAssessment.renewables ?? "none",
+      climate: insertAssessment.climate ?? "UK std",
+      heatingDemand: insertAssessment.heatingDemand ?? "Scot std",
+      hotWaterDemand: insertAssessment.hotWaterDemand ?? "Scot std",
+      appliances: insertAssessment.appliances ?? "standard",
+      gridIntensity: insertAssessment.gridIntensity ?? "UK std",
+      tariff: insertAssessment.tariff ?? "standard",
+      capital: insertAssessment.capital ?? "standard",
+      futureYear: insertAssessment.futureYear ?? null,
+      locationId: insertAssessment.locationId ?? null,
       energyDemand: null,
       carbonEmissions: null,
       annualCost: null,
@@ -123,9 +146,9 @@ export class MemStorage implements IStorage {
     return assessment;
   }
 
-  async updateAssessment(id: string, updates: Partial<InsertAssessment>): Promise<Assessment | undefined> {
+  async updateAssessment(id: string, updates: Partial<InsertAssessment>): Promise<Assessment | null> {
     const existing = this.assessments.get(id);
-    if (!existing) return undefined;
+    if (!existing) return null;
 
     const updated: Assessment = {
       ...existing,
@@ -141,8 +164,8 @@ export class MemStorage implements IStorage {
   }
 
   // Location operations
-  async getLocation(id: string): Promise<Location | undefined> {
-    return this.locations.get(id);
+  async getLocation(id: string): Promise<Location | null> {
+    return this.locations.get(id) ?? null;
   }
 
   async getAllLocations(): Promise<Location[]> {
@@ -152,8 +175,24 @@ export class MemStorage implements IStorage {
   async createLocation(insertLocation: InsertLocation): Promise<Location> {
     const id = randomUUID();
     const location: Location = {
-      ...insertLocation,
       id,
+      name: insertLocation.name,
+      country: insertLocation.country,
+      region: insertLocation.region ?? null,
+      heatingDegreeDays: insertLocation.heatingDegreeDays,
+      coolingDegreeDays: insertLocation.coolingDegreeDays ?? 0,
+      solarRadiation: insertLocation.solarRadiation,
+      averageTemp: insertLocation.averageTemp,
+      windSpeed: insertLocation.windSpeed ?? 4.4,
+      gasCost: insertLocation.gasCost,
+      electricityCost: insertLocation.electricityCost,
+      oilCost: insertLocation.oilCost,
+      woodCost: insertLocation.woodCost,
+      gasCarbon: insertLocation.gasCarbon,
+      electricityCarbon: insertLocation.electricityCarbon,
+      oilCarbon: insertLocation.oilCarbon,
+      woodCarbon: insertLocation.woodCarbon,
+      buildingStandards: insertLocation.buildingStandards ?? {},
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -161,9 +200,9 @@ export class MemStorage implements IStorage {
     return location;
   }
 
-  async updateLocation(id: string, updates: Partial<InsertLocation>): Promise<Location | undefined> {
+  async updateLocation(id: string, updates: Partial<InsertLocation>): Promise<Location | null> {
     const existing = this.locations.get(id);
-    if (!existing) return undefined;
+    if (!existing) return null;
 
     const updated: Location = {
       ...existing,

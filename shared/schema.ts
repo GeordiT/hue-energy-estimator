@@ -6,6 +6,8 @@ import { z } from "zod";
 export const assessments = pgTable("assessments", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
+  version: integer("version").default(1).notNull(), // Schema version for migrations
+  
   // Fabric determinants
   insulation: text("insulation").default("standard"),
   airChanges: text("air_changes").default("standard"),
@@ -31,6 +33,9 @@ export const assessments = pgTable("assessments", {
   gridIntensity: text("grid_intensity").default("UK std"),
   tariff: text("tariff").default("standard"),
   capital: text("capital").default("standard"),
+  
+  // Future projection
+  futureYear: integer("future_year"), // Optional year for grid decarbonization projection
   
   // Location-specific data
   locationId: varchar("location_id"),
@@ -91,7 +96,8 @@ export const upgradeRecommendations = pgTable("upgrade_recommendations", {
   energySavings: real("energy_savings").notNull(),
 });
 
-export const insertAssessmentSchema = createInsertSchema(assessments).omit({
+// Base insert schema for assessments
+const baseInsertAssessmentSchema = createInsertSchema(assessments).omit({
   id: true,
   energyDemand: true,
   carbonEmissions: true,
@@ -101,14 +107,79 @@ export const insertAssessmentSchema = createInsertSchema(assessments).omit({
   updatedAt: true,
 });
 
-export const insertLocationSchema = createInsertSchema(locations).omit({
+// Enhanced assessment schema with validation
+export const insertAssessmentSchema = baseInsertAssessmentSchema.extend({
+  futureYear: z.number().int().min(2024).max(2100).optional().nullable(),
+  version: z.number().int().min(1).default(1),
+});
+
+// Base insert schema for locations
+const baseInsertLocationSchema = createInsertSchema(locations).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
 });
 
+// Enhanced location schema with strict climate data and cost validation
+export const insertLocationSchema = baseInsertLocationSchema.extend({
+  // Climate data validation with realistic ranges
+  heatingDegreeDays: z.number()
+    .min(0, "Heating degree days cannot be negative")
+    .max(10000, "Heating degree days cannot exceed 10,000 (extreme arctic)")
+    .refine(v => Number.isFinite(v), "Must be a valid number"),
+  coolingDegreeDays: z.number()
+    .min(0, "Cooling degree days cannot be negative")
+    .max(5000, "Cooling degree days cannot exceed 5,000 (extreme tropical)")
+    .default(0),
+  solarRadiation: z.number()
+    .min(200, "Solar radiation must be at least 200 kWh/m²/year")
+    .max(2500, "Solar radiation cannot exceed 2,500 kWh/m²/year"),
+  averageTemp: z.number()
+    .min(-30, "Average temperature cannot be below -30°C")
+    .max(45, "Average temperature cannot exceed 45°C"),
+  windSpeed: z.number()
+    .min(0, "Wind speed cannot be negative")
+    .max(30, "Wind speed cannot exceed 30 m/s")
+    .default(4.4),
+  
+  // Energy cost validation (pence/kWh or £/unit)
+  gasCost: z.number()
+    .min(0, "Gas cost cannot be negative")
+    .max(100, "Gas cost cannot exceed 100 p/kWh"),
+  electricityCost: z.number()
+    .min(0, "Electricity cost cannot be negative")
+    .max(200, "Electricity cost cannot exceed 200 p/kWh"),
+  oilCost: z.number()
+    .min(0, "Oil cost cannot be negative")
+    .max(500, "Oil cost cannot exceed 500 p/litre"),
+  woodCost: z.number()
+    .min(0, "Wood cost cannot be negative")
+    .max(1000, "Wood cost cannot exceed £1000/tonne"),
+  
+  // Carbon factor validation (kgCO2/kWh or per unit)
+  gasCarbon: z.number()
+    .min(0, "Carbon factor cannot be negative")
+    .max(1, "Gas carbon factor cannot exceed 1 kgCO2/kWh"),
+  electricityCarbon: z.number()
+    .min(0, "Carbon factor cannot be negative")
+    .max(2, "Electricity carbon factor cannot exceed 2 kgCO2/kWh"),
+  oilCarbon: z.number()
+    .min(0, "Carbon factor cannot be negative")
+    .max(5, "Oil carbon factor cannot exceed 5 kgCO2/litre"),
+  woodCarbon: z.number()
+    .min(0, "Carbon factor cannot be negative")
+    .max(1, "Wood carbon factor cannot exceed 1 kgCO2/kg"),
+});
+
 export const insertUpgradeRecommendationSchema = createInsertSchema(upgradeRecommendations).omit({
   id: true,
+});
+
+// Validation schema for calculation options
+export const calculationOptionsSchema = z.object({
+  futureYear: z.number().int().min(2024).max(2100).optional(),
+  baseYear: z.number().int().min(1990).max(2030).default(2024).optional(),
+  decarbonizationRate: z.number().min(0).max(0.2).default(0.03).optional(),
 });
 
 export type Assessment = typeof assessments.$inferSelect;
@@ -117,6 +188,7 @@ export type Location = typeof locations.$inferSelect;
 export type InsertLocation = z.infer<typeof insertLocationSchema>;
 export type UpgradeRecommendation = typeof upgradeRecommendations.$inferSelect;
 export type InsertUpgradeRecommendation = z.infer<typeof insertUpgradeRecommendationSchema>;
+export type CalculationOptions = z.infer<typeof calculationOptionsSchema>;
 
 // Fabric determinant options
 export const insulationOptions = [
