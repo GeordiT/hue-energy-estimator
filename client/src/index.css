@@ -71,3 +71,178 @@
     background-color: var(--surface-variant);
   }
 }
+
+/* Energy Passport Print Styles */
+@media print {
+  /* Hide non-essential elements */
+  header,
+  nav,
+  .sidebar,
+  .no-print,
+  .tab-navigation,
+  .secondary-controls {
+    display: none !important;
+  }
+
+  /* Reset page styles */
+  body {
+    background: white !important;
+    color: black !important;
+    font-size: 12pt;
+    line-height: 1.4;
+  }
+
+  /* Page setup */
+  @page {
+    margin: 1.5cm;
+    size: A4;
+  }
+
+  /* Energy Passport container */
+  .energy-passport {
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Header styling for print */
+  .energy-passport-header {
+    text-align: center;
+    border-bottom: 3px solid #1e40af;
+    padding-bottom: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .energy-passport-header h1 {
+    font-size: 24pt;
+    color: #1e40af;
+    margin-bottom: 0.5rem;
+  }
+
+  .energy-passport-header .subtitle {
+    font-size: 11pt;
+    color: #6b7280;
+  }
+
+  /* Card styling for print */
+  .print-card {
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    page-break-inside: avoid;
+    background: white !important;
+  }
+
+  .print-card h3 {
+    color: #1f2937;
+    font-size: 14pt;
+    margin-bottom: 0.75rem;
+    border-bottom: 1px solid #e5e7eb;
+    padding-bottom: 0.5rem;
+  }
+
+  /* Summary cards grid */
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .summary-item {
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    padding: 0.75rem;
+    text-align: center;
+  }
+
+  .summary-item .label {
+    font-size: 9pt;
+    color: #6b7280;
+    text-transform: uppercase;
+  }
+
+  .summary-item .value {
+    font-size: 18pt;
+    font-weight: bold;
+    color: #1f2937;
+  }
+
+  .summary-item .unit {
+    font-size: 9pt;
+    color: #9ca3af;
+  }
+
+  /* Energy rating visual */
+  .rating-band {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0.25rem 0;
+  }
+
+  .rating-label {
+    width: 2rem;
+    height: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: bold;
+    font-size: 10pt;
+    border-radius: 3px;
+  }
+
+  .rating-a { background: #22c55e; }
+  .rating-b { background: #84cc16; }
+  .rating-c { background: #eab308; }
+  .rating-d { background: #f97316; }
+  .rating-e { background: #ef4444; }
+  .rating-f { background: #dc2626; }
+  .rating-g { background: #991b1b; }
+
+  /* Recommendations list */
+  .recommendation-item {
+    border-left: 4px solid #3b82f6;
+    padding-left: 0.75rem;
+    margin: 0.5rem 0;
+  }
+
+  .recommendation-item.high-priority {
+    border-left-color: #22c55e;
+  }
+
+  .recommendation-item.medium-priority {
+    border-left-color: #3b82f6;
+  }
+
+  .recommendation-item.low-priority {
+    border-left-color: #f97316;
+  }
+
+  /* Footer */
+  .print-footer {
+    margin-top: 2rem;
+    padding-top: 1rem;
+    border-top: 1px solid #e5e7eb;
+    font-size: 9pt;
+    color: #6b7280;
+    text-align: center;
+  }
+
+  /* Force colors for rating badges */
+  .bg-green-600 { background-color: #22c55e !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .bg-green-500 { background-color: #84cc16 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .bg-yellow-500 { background-color: #eab308 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .bg-orange-500 { background-color: #f97316 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .bg-red-500 { background-color: #ef4444 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .bg-red-600 { background-color: #dc2626 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .bg-red-700 { background-color: #991b1b !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  /* Ensure proper coloring */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}

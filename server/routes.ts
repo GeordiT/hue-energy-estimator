@@ -95,6 +95,144 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Clone assessment endpoint
+  app.post("/api/assessments/:id/clone", async (req, res) => {
+    try {
+      const original = await storage.getAssessment(req.params.id);
+      if (!original) {
+        return res.status(404).json({ error: "Assessment not found" });
+      }
+
+      const cloneName = req.body.name || `${original.name} (Copy)`;
+      
+      // Build clone data from original, using defaults for null values
+      const cloneData = {
+        name: cloneName,
+        version: original.version || 1,
+        insulation: original.insulation ?? "standard",
+        airChanges: original.airChanges ?? "standard",
+        capacity: original.capacity ?? "high",
+        exposure: original.exposure ?? "detached",
+        shape: original.shape ?? "2-storey",
+        windowSize: original.windowSize ?? "standard",
+        heatingFuel: original.heatingFuel ?? "main_gas",
+        heatingType: original.heatingType ?? "boiler_h_eff",
+        hotWaterType: original.hotWaterType ?? "main_tank",
+        controls: Array.isArray(original.controls) ? original.controls : [],
+        lightingType: original.lightingType ?? "0% lel",
+        ventilationType: original.ventilationType ?? "nat / wet ext",
+        renewables: original.renewables ?? "none",
+        climate: original.climate ?? "UK std",
+        heatingDemand: original.heatingDemand ?? "Scot std",
+        hotWaterDemand: original.hotWaterDemand ?? "Scot std",
+        appliances: original.appliances ?? "standard",
+        gridIntensity: original.gridIntensity ?? "UK std",
+        tariff: original.tariff ?? "standard",
+        capital: original.capital ?? "standard",
+        futureYear: original.futureYear,
+        locationId: original.locationId,
+      };
+
+      // Validate through schema
+      const validatedData = insertAssessmentSchema.parse(cloneData);
+      
+      // Create the cloned assessment (does not mutate original)
+      const clonedAssessment = await storage.createAssessment(validatedData);
+      
+      // Calculate performance metrics for the new assessment
+      const location = clonedAssessment.locationId ? await storage.getLocation(clonedAssessment.locationId) : null;
+      const options = clonedAssessment.futureYear ? { futureYear: clonedAssessment.futureYear } : undefined;
+      const results = calculateEnergyPerformance(clonedAssessment, location, options);
+
+      // Persist calculated results to the cloned assessment
+      clonedAssessment.energyDemand = results.energyDemand;
+      clonedAssessment.carbonEmissions = results.carbonEmissions;
+      clonedAssessment.annualCost = results.annualCost;
+      clonedAssessment.eiScore = results.eiScore;
+
+      res.json({
+        ...clonedAssessment,
+        formFactor: results.formFactor,
+        projectedYear: results.projectedYear,
+        adjustedElectricityCarbon: results.adjustedElectricityCarbon,
+      });
+    } catch (error) {
+      if (error instanceof Error) {
+        res.status(400).json({ error: error.message });
+      } else {
+        res.status(500).json({ error: "Failed to clone assessment" });
+      }
+    }
+  });
+
+  // Compare assessments endpoint - returns typed DTO for comparison
+  app.post("/api/assessments/compare", async (req, res) => {
+    try {
+      const { baselineId, upgradeId } = req.body;
+      
+      const baseline = await storage.getAssessment(baselineId);
+      const upgrade = await storage.getAssessment(upgradeId);
+      
+      if (!baseline || !upgrade) {
+        return res.status(404).json({ error: "One or both assessments not found" });
+      }
+
+      const baselineLocation = baseline.locationId ? await storage.getLocation(baseline.locationId) : null;
+      const upgradeLocation = upgrade.locationId ? await storage.getLocation(upgrade.locationId) : null;
+
+      // Calculate fresh results from sanitized assessment data
+      const baselineResults = calculateEnergyPerformance(baseline, baselineLocation);
+      const upgradeResults = calculateEnergyPerformance(upgrade, upgradeLocation);
+
+      // Calculate differences using freshly calculated results
+      const energySavings = baselineResults.energyDemand - upgradeResults.energyDemand;
+      const costSavings = baselineResults.annualCost - upgradeResults.annualCost;
+      const carbonSavings = baselineResults.carbonEmissions - upgradeResults.carbonEmissions;
+      const eiImprovement = upgradeResults.eiScore - baselineResults.eiScore;
+
+      // Return typed comparison DTO
+      res.json({
+        baseline: {
+          id: baseline.id,
+          name: baseline.name,
+          results: {
+            energyDemand: baselineResults.energyDemand,
+            carbonEmissions: baselineResults.carbonEmissions,
+            annualCost: baselineResults.annualCost,
+            eiScore: baselineResults.eiScore,
+          }
+        },
+        upgrade: {
+          id: upgrade.id,
+          name: upgrade.name,
+          results: {
+            energyDemand: upgradeResults.energyDemand,
+            carbonEmissions: upgradeResults.carbonEmissions,
+            annualCost: upgradeResults.annualCost,
+            eiScore: upgradeResults.eiScore,
+          }
+        },
+        comparison: {
+          energySavings,
+          costSavings,
+          carbonSavings,
+          eiImprovement,
+          energySavingsPercent: baselineResults.energyDemand > 0 
+            ? Math.round((energySavings / baselineResults.energyDemand) * 100) 
+            : 0,
+          costSavingsPercent: baselineResults.annualCost > 0 
+            ? Math.round((costSavings / baselineResults.annualCost) * 100) 
+            : 0,
+          carbonSavingsPercent: baselineResults.carbonEmissions > 0 
+            ? Math.round((carbonSavings / baselineResults.carbonEmissions) * 100) 
+            : 0,
+        }
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to compare assessments" });
+    }
+  });
+
   // Location routes
   app.get("/api/locations", async (req, res) => {
     try {

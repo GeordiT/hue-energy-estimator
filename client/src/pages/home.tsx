@@ -8,14 +8,16 @@ import SystemDeterminants from "@/components/system-determinants";
 import ContextDeterminants from "@/components/context-determinants";
 import ResultsAnalysis from "@/components/results-analysis";
 import SecondaryControls from "@/components/secondary-controls";
+import ComparisonView from "@/components/comparison-view";
 
-type TabType = "fabric" | "system" | "context" | "results";
+type TabType = "fabric" | "system" | "context" | "results" | "compare";
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<TabType>("fabric");
   const [currentAssessment, setCurrentAssessment] = useState<Assessment>({
     id: "",
     name: "New Assessment",
+    version: 1,
     insulation: "standard",
     airChanges: "standard",
     capacity: "high",
@@ -36,6 +38,7 @@ export default function Home() {
     gridIntensity: "UK std",
     tariff: "standard",
     capital: "standard",
+    futureYear: null,
     locationId: null,
     energyDemand: null,
     carbonEmissions: null,
@@ -83,6 +86,7 @@ export default function Home() {
     { key: "system" as TabType, label: "System Determinants" },
     { key: "context" as TabType, label: "Context Determinants" },
     { key: "results" as TabType, label: "Results & Analysis" },
+    { key: "compare" as TabType, label: "Scenario Comparison" },
   ];
 
   return (
@@ -137,6 +141,11 @@ export default function Home() {
                 <ResultsAnalysis
                   assessment={currentAssessment}
                   locations={locations}
+                />
+              )}
+              {activeTab === "compare" && (
+                <ComparisonView
+                  currentAssessment={currentAssessment}
                 />
               )}
             </div>
