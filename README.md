@@ -1,6 +1,6 @@
 # EDEM - Housing Upgrade Estimator
 
-A comprehensive energy assessment application for residential buildings, developed based on the University of Strathclyde's ESRU methodology. The system enables users to evaluate building energy performance through detailed fabric, system, and contextual assessments.
+A comprehensive energy assessment application for residential buildings. The system enables users to evaluate building energy performance through detailed fabric, system, and contextual assessments.
 
 ## Purpose
 

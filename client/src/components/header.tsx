@@ -18,7 +18,7 @@ export default function Header() {
             </div>
             <div className="hidden md:block h-8 w-px bg-gray-300 mx-4"></div>
             <div className="hidden md:block">
-              <p className="text-sm text-gray-600">ESRU - University of Strathclyde</p>
+              <p className="text-sm text-gray-600">Energy Assessment Tool</p>
             </div>
           </div>
           <div className="flex items-center space-x-4">
