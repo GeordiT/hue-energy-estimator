@@ -5,6 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Zap, Leaf, DollarSign, Star, Printer, FileText } from "lucide-react";
 import { generateUpgradeRecommendations } from "@/lib/calculation-engine";
+import { pdf } from "@react-pdf/renderer";
+import ReportTemplate from "./report-template";
 
 interface ResultsAnalysisProps {
   assessment: Assessment;
