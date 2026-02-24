@@ -7,7 +7,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Calculator, Thermometer } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
 
 interface DegreeDaysCalculatorProps {
   onResult?: (heatingDD: number, coolingDD: number) => void;
@@ -37,7 +36,7 @@ export default function DegreeDaysCalculator({ onResult, trigger }: DegreeDaysCa
       .filter(n => !isNaN(n));
   };
 
-  const handleCalculate = async () => {
+  const handleCalculate = () => {
     const highsArray = parseTemperatures(dailyHighs);
     const lowsArray = parseTemperatures(dailyLows);
 
@@ -61,16 +60,27 @@ export default function DegreeDaysCalculator({ onResult, trigger }: DegreeDaysCa
 
     setIsCalculating(true);
     try {
-      const response = await apiRequest("POST", "/api/calculate-degree-days", {
-        dailyHighs: highsArray,
-        dailyLows: lowsArray,
-        baseTemp,
-      });
-      
-      const data = await response.json();
+      let heatingDD = 0;
+      let coolingDD = 0;
+
+      for (let i = 0; i < highsArray.length; i++) {
+        const dailyMean = (highsArray[i] + lowsArray[i]) / 2;
+        if (dailyMean < baseTemp) {
+          heatingDD += baseTemp - dailyMean;
+        } else if (dailyMean > baseTemp) {
+          coolingDD += dailyMean - baseTemp;
+        }
+      }
+
+      const data = {
+        heatingDegreeDays: Math.round(heatingDD),
+        coolingDegreeDays: Math.round(coolingDD),
+        daysCalculated: highsArray.length,
+        baseTemperature: baseTemp,
+      };
 
       setResult(data);
-      
+
       if (onResult) {
         onResult(data.heatingDegreeDays, data.coolingDegreeDays);
       }
@@ -79,7 +89,7 @@ export default function DegreeDaysCalculator({ onResult, trigger }: DegreeDaysCa
         title: "Calculation complete",
         description: `Calculated degree days for ${data.daysCalculated} days.`,
       });
-    } catch (error) {
+    } catch {
       toast({
         title: "Calculation failed",
         description: "An error occurred while calculating degree days.",
@@ -91,7 +101,6 @@ export default function DegreeDaysCalculator({ onResult, trigger }: DegreeDaysCa
   };
 
   const loadExample = () => {
-    // Example data for demonstration - typical UK summer/winter temperatures
     setDailyHighs("22, 25, 28, 26, 24, 21, 19, 23, 27, 29, 31, 28, 25, 22, 20");
     setDailyLows("12, 15, 18, 16, 14, 11, 9, 13, 17, 19, 21, 18, 15, 12, 10");
     toast({
@@ -126,7 +135,7 @@ export default function DegreeDaysCalculator({ onResult, trigger }: DegreeDaysCa
             <CardContent className="text-sm text-gray-600">
               <p>Enter daily high and low temperatures to calculate heating and cooling degree days.</p>
               <p className="mt-2">
-                <strong>Formula:</strong> Daily mean = (high + low) ÷ 2<br/>
+                <strong>Formula:</strong> Daily mean = (high + low) / 2<br/>
                 If mean &lt; base temp: Heating DD = base temp - mean<br/>
                 If mean &gt; base temp: Cooling DD = mean - base temp
               </p>

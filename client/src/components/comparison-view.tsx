@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Assessment } from "@shared/schema";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { apiRequest } from "@/lib/queryClient";
+import { storage } from "@/lib/storage-provider";
+import { calculateEnergyPerformance } from "@/lib/calculation-engine";
+import { insertAssessmentSchema } from "@shared/schema";
 import { Copy, ArrowRight, DollarSign, Leaf, Star, Zap, Calculator } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { 
@@ -82,73 +84,142 @@ export default function ComparisonView({ currentAssessment }: ComparisonViewProp
   const [selectedUpgradeId, setSelectedUpgradeId] = useState<string>("");
   const [capitalCost, setCapitalCost] = useState<number>(0);
   const [comparisonResult, setComparisonResult] = useState<ComparisonResult | null>(null);
+  const [isCloning, setIsCloning] = useState(false);
 
   const { data: assessments = [], isLoading } = useQuery<Assessment[]>({
-    queryKey: ["/api/assessments"],
-  });
-
-  const cloneMutation = useMutation({
-    mutationFn: async (data: { id: string; name: string }) => {
-      const response = await apiRequest("POST", `/api/assessments/${data.id}/clone`, { name: data.name });
-      return response.json();
-    },
-    onSuccess: (clonedAssessment) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/assessments"] });
-      toast({
-        title: "Assessment Cloned",
-        description: `Created "${clonedAssessment.name}" for scenario comparison.`,
-      });
-      setSelectedUpgradeId(clonedAssessment.id);
-    },
-    onError: () => {
-      toast({
-        title: "Clone Failed",
-        description: "Failed to clone assessment. Please try again.",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const compareMutation = useMutation({
-    mutationFn: async (data: { baselineId: string; upgradeId: string }) => {
-      const response = await apiRequest("POST", "/api/assessments/compare", data);
-      return response.json();
-    },
-    onSuccess: (result) => {
-      setComparisonResult(result);
-    },
-    onError: () => {
-      toast({
-        title: "Comparison Failed",
-        description: "Failed to compare assessments. Please ensure both are selected.",
-        variant: "destructive",
-      });
-    },
+    queryKey: ["assessments"],
+    queryFn: () => storage.getAllAssessments(),
   });
 
   const handleCloneForComparison = () => {
-    if (currentAssessment.id) {
-      cloneMutation.mutate({
-        id: currentAssessment.id,
-        name: `${currentAssessment.name} (Upgrade Scenario)`,
-      });
-      setSelectedBaselineId(currentAssessment.id);
-    } else {
+    if (!currentAssessment.id) {
       toast({
         title: "Save Assessment First",
         description: "Please save the current assessment before creating a comparison scenario.",
         variant: "destructive",
       });
+      return;
+    }
+
+    setIsCloning(true);
+    try {
+      const original = storage.getAssessment(currentAssessment.id);
+      if (!original) {
+        toast({ title: "Error", description: "Assessment not found.", variant: "destructive" });
+        return;
+      }
+
+      const cloneData = {
+        name: `${original.name} (Upgrade Scenario)`,
+        version: original.version || 1,
+        insulation: original.insulation ?? "standard",
+        airChanges: original.airChanges ?? "standard",
+        capacity: original.capacity ?? "high",
+        exposure: original.exposure ?? "detached",
+        shape: original.shape ?? "2-storey",
+        windowSize: original.windowSize ?? "standard",
+        heatingFuel: original.heatingFuel ?? "main_gas",
+        heatingType: original.heatingType ?? "boiler_h_eff",
+        hotWaterType: original.hotWaterType ?? "main_tank",
+        controls: Array.isArray(original.controls) ? original.controls : [],
+        lightingType: original.lightingType ?? "0% lel",
+        ventilationType: original.ventilationType ?? "nat / wet ext",
+        renewables: original.renewables ?? "none",
+        climate: original.climate ?? "UK std",
+        heatingDemand: original.heatingDemand ?? "Scot std",
+        hotWaterDemand: original.hotWaterDemand ?? "Scot std",
+        appliances: original.appliances ?? "standard",
+        gridIntensity: original.gridIntensity ?? "UK std",
+        tariff: original.tariff ?? "standard",
+        capital: original.capital ?? "standard",
+        futureYear: original.futureYear,
+        locationId: original.locationId,
+      };
+
+      const validated = insertAssessmentSchema.parse(cloneData);
+      const cloned = storage.createAssessment(validated);
+
+      const location = cloned.locationId ? storage.getLocation(cloned.locationId) : null;
+      const options = cloned.futureYear ? { futureYear: cloned.futureYear } : undefined;
+      const results = calculateEnergyPerformance(cloned, location, options);
+      storage.saveAssessmentResults(cloned.id, {
+        energyDemand: results.energyDemand,
+        carbonEmissions: results.carbonEmissions,
+        annualCost: results.annualCost,
+        eiScore: results.eiScore,
+      });
+
+      queryClient.invalidateQueries({ queryKey: ["assessments"] });
+      toast({
+        title: "Assessment Cloned",
+        description: `Created "${cloned.name}" for scenario comparison.`,
+      });
+      setSelectedBaselineId(currentAssessment.id);
+      setSelectedUpgradeId(cloned.id);
+    } catch {
+      toast({ title: "Clone Failed", description: "Failed to clone assessment.", variant: "destructive" });
+    } finally {
+      setIsCloning(false);
     }
   };
 
   const handleCompare = () => {
-    if (selectedBaselineId && selectedUpgradeId) {
-      compareMutation.mutate({
-        baselineId: selectedBaselineId,
-        upgradeId: selectedUpgradeId,
-      });
+    if (!selectedBaselineId || !selectedUpgradeId) return;
+
+    const baseline = storage.getAssessment(selectedBaselineId);
+    const upgrade = storage.getAssessment(selectedUpgradeId);
+    if (!baseline || !upgrade) {
+      toast({ title: "Error", description: "One or both assessments not found.", variant: "destructive" });
+      return;
     }
+
+    const baselineLocation = baseline.locationId ? storage.getLocation(baseline.locationId) : null;
+    const upgradeLocation = upgrade.locationId ? storage.getLocation(upgrade.locationId) : null;
+    const baselineResults = calculateEnergyPerformance(baseline, baselineLocation);
+    const upgradeResults = calculateEnergyPerformance(upgrade, upgradeLocation);
+
+    const energySavings = baselineResults.energyDemand - upgradeResults.energyDemand;
+    const costSavings = baselineResults.annualCost - upgradeResults.annualCost;
+    const carbonSavings = baselineResults.carbonEmissions - upgradeResults.carbonEmissions;
+    const eiImprovement = upgradeResults.eiScore - baselineResults.eiScore;
+
+    setComparisonResult({
+      baseline: {
+        id: baseline.id,
+        name: baseline.name,
+        results: {
+          energyDemand: baselineResults.energyDemand,
+          carbonEmissions: baselineResults.carbonEmissions,
+          annualCost: baselineResults.annualCost,
+          eiScore: baselineResults.eiScore,
+        },
+      },
+      upgrade: {
+        id: upgrade.id,
+        name: upgrade.name,
+        results: {
+          energyDemand: upgradeResults.energyDemand,
+          carbonEmissions: upgradeResults.carbonEmissions,
+          annualCost: upgradeResults.annualCost,
+          eiScore: upgradeResults.eiScore,
+        },
+      },
+      comparison: {
+        energySavings,
+        costSavings,
+        carbonSavings,
+        eiImprovement,
+        energySavingsPercent: baselineResults.energyDemand > 0
+          ? Math.round((energySavings / baselineResults.energyDemand) * 100)
+          : 0,
+        costSavingsPercent: baselineResults.annualCost > 0
+          ? Math.round((costSavings / baselineResults.annualCost) * 100)
+          : 0,
+        carbonSavingsPercent: baselineResults.carbonEmissions > 0
+          ? Math.round((carbonSavings / baselineResults.carbonEmissions) * 100)
+          : 0,
+      },
+    });
   };
 
   const calculatePaybackPeriod = (): number | null => {
@@ -233,11 +304,11 @@ export default function ComparisonView({ currentAssessment }: ComparisonViewProp
           <div className="flex gap-4 items-end">
             <Button
               onClick={handleCloneForComparison}
-              disabled={!currentAssessment.id || cloneMutation.isPending}
+              disabled={!currentAssessment.id || isCloning}
               data-testid="button-clone-assessment"
             >
               <Copy className="w-4 h-4 mr-2" />
-              {cloneMutation.isPending ? "Cloning..." : "Clone Current for Comparison"}
+              {isCloning ? "Cloning..." : "Clone Current for Comparison"}
             </Button>
           </div>
 
@@ -278,11 +349,11 @@ export default function ComparisonView({ currentAssessment }: ComparisonViewProp
 
           <Button
             onClick={handleCompare}
-            disabled={!selectedBaselineId || !selectedUpgradeId || compareMutation.isPending}
+            disabled={!selectedBaselineId || !selectedUpgradeId}
             className="w-full"
             data-testid="button-compare"
           >
-            {compareMutation.isPending ? "Comparing..." : "Compare Scenarios"}
+            Compare Scenarios
           </Button>
         </CardContent>
       </Card>

@@ -1,128 +1,107 @@
-import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, real, integer, jsonb, timestamp } from "drizzle-orm/pg-core";
-import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-export const assessments = pgTable("assessments", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: text("name").notNull(),
-  version: integer("version").default(1).notNull(), // Schema version for migrations
-  
-  // Fabric determinants
-  insulation: text("insulation").default("standard"),
-  airChanges: text("air_changes").default("standard"),
-  capacity: text("capacity").default("high"),
-  exposure: text("exposure").default("detached"),
-  shape: text("shape").default("2-storey"),
-  windowSize: text("window_size").default("standard"),
-  
-  // System determinants
-  heatingFuel: text("heating_fuel").default("main_gas"),
-  heatingType: text("heating_type").default("boiler_h_eff"),
-  hotWaterType: text("hot_water_type").default("main_tank"),
-  controls: jsonb("controls").default("[]"),
-  lightingType: text("lighting_type").default("0% lel"),
-  ventilationType: text("ventilation_type").default("nat / wet ext"),
-  renewables: text("renewables").default("none"),
-  
-  // Context determinants
-  climate: text("climate").default("UK std"),
-  heatingDemand: text("heating_demand").default("Scot std"),
-  hotWaterDemand: text("hot_water_demand").default("Scot std"),
-  appliances: text("appliances").default("standard"),
-  gridIntensity: text("grid_intensity").default("UK std"),
-  tariff: text("tariff").default("standard"),
-  capital: text("capital").default("standard"),
-  
-  // Future projection
-  futureYear: integer("future_year"), // Optional year for grid decarbonization projection
-  
-  // Location-specific data
-  locationId: varchar("location_id"),
-  
-  // Results (calculated)
-  energyDemand: real("energy_demand"),
-  carbonEmissions: real("carbon_emissions"),
-  annualCost: real("annual_cost"),
-  eiScore: integer("ei_score"),
-  
-  createdAt: timestamp("created_at").default(sql`now()`),
-  updatedAt: timestamp("updated_at").default(sql`now()`),
-});
+export interface Assessment {
+  id: string;
+  name: string;
+  version: number;
+  insulation: string;
+  airChanges: string;
+  capacity: string;
+  exposure: string;
+  shape: string;
+  windowSize: string;
+  heatingFuel: string;
+  heatingType: string;
+  hotWaterType: string;
+  controls: string[];
+  lightingType: string;
+  ventilationType: string;
+  renewables: string;
+  climate: string;
+  heatingDemand: string;
+  hotWaterDemand: string;
+  appliances: string;
+  gridIntensity: string;
+  tariff: string;
+  capital: string;
+  futureYear: number | null;
+  locationId: string | null;
+  energyDemand: number | null;
+  carbonEmissions: number | null;
+  annualCost: number | null;
+  eiScore: number | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
-export const locations = pgTable("locations", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  name: text("name").notNull(),
-  country: text("country").notNull(),
-  region: text("region"),
-  
-  // Climate data
-  heatingDegreeDays: real("heating_degree_days").notNull(),
-  coolingDegreeDays: real("cooling_degree_days").notNull().default(0),
-  solarRadiation: real("solar_radiation").notNull(),
-  averageTemp: real("average_temp").notNull(),
-  windSpeed: real("wind_speed").notNull().default(4.4),
-  
-  // Cost parameters
-  gasCost: real("gas_cost").notNull(), // p/kWh
-  electricityCost: real("electricity_cost").notNull(), // p/kWh
-  oilCost: real("oil_cost").notNull(), // p/litre
-  woodCost: real("wood_cost").notNull(), // £/tonne
-  
-  // Carbon factors
-  gasCarbon: real("gas_carbon").notNull(), // kgCO2/kWh
-  electricityCarbon: real("electricity_carbon").notNull(), // kgCO2/kWh
-  oilCarbon: real("oil_carbon").notNull(), // kgCO2/litre
-  woodCarbon: real("wood_carbon").notNull(), // kgCO2/kg
-  
-  // Regulatory standards
-  buildingStandards: jsonb("building_standards").default("{}"),
-  
-  createdAt: timestamp("created_at").default(sql`now()`),
-  updatedAt: timestamp("updated_at").default(sql`now()`),
-});
+export interface Location {
+  id: string;
+  name: string;
+  country: string;
+  region: string | null;
+  heatingDegreeDays: number;
+  coolingDegreeDays: number;
+  solarRadiation: number;
+  averageTemp: number;
+  windSpeed: number;
+  gasCost: number;
+  electricityCost: number;
+  oilCost: number;
+  woodCost: number;
+  gasCarbon: number;
+  electricityCarbon: number;
+  oilCarbon: number;
+  woodCarbon: number;
+  buildingStandards: Record<string, number>;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
-export const upgradeRecommendations = pgTable("upgrade_recommendations", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  assessmentId: varchar("assessment_id").notNull(),
-  name: text("name").notNull(),
-  description: text("description").notNull(),
-  category: text("category").notNull(), // fabric, system, renewable
-  priority: text("priority").notNull(), // high, medium, low
-  cost: real("cost").notNull(),
-  annualSavings: real("annual_savings").notNull(),
-  carbonSavings: real("carbon_savings").notNull(),
-  paybackYears: real("payback_years").notNull(),
-  energySavings: real("energy_savings").notNull(),
-});
+export interface UpgradeRecommendation {
+  id: string;
+  assessmentId: string;
+  name: string;
+  description: string;
+  category: string;
+  priority: string;
+  cost: number;
+  annualSavings: number;
+  carbonSavings: number;
+  paybackYears: number;
+  energySavings: number;
+}
 
-// Base insert schema for assessments
-const baseInsertAssessmentSchema = createInsertSchema(assessments).omit({
-  id: true,
-  energyDemand: true,
-  carbonEmissions: true,
-  annualCost: true,
-  eiScore: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-// Enhanced assessment schema with validation
-export const insertAssessmentSchema = baseInsertAssessmentSchema.extend({
-  futureYear: z.number().int().min(2024).max(2100).optional().nullable(),
+export const insertAssessmentSchema = z.object({
+  name: z.string().min(1),
   version: z.number().int().min(1).default(1),
+  insulation: z.string().default("standard"),
+  airChanges: z.string().default("standard"),
+  capacity: z.string().default("high"),
+  exposure: z.string().default("detached"),
+  shape: z.string().default("2-storey"),
+  windowSize: z.string().default("standard"),
+  heatingFuel: z.string().default("main_gas"),
+  heatingType: z.string().default("boiler_h_eff"),
+  hotWaterType: z.string().default("main_tank"),
+  controls: z.array(z.string()).default([]),
+  lightingType: z.string().default("0% lel"),
+  ventilationType: z.string().default("nat / wet ext"),
+  renewables: z.string().default("none"),
+  climate: z.string().default("UK std"),
+  heatingDemand: z.string().default("Scot std"),
+  hotWaterDemand: z.string().default("Scot std"),
+  appliances: z.string().default("standard"),
+  gridIntensity: z.string().default("UK std"),
+  tariff: z.string().default("standard"),
+  capital: z.string().default("standard"),
+  futureYear: z.number().int().min(2024).max(2100).optional().nullable(),
+  locationId: z.string().optional().nullable(),
 });
 
-// Base insert schema for locations
-const baseInsertLocationSchema = createInsertSchema(locations).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-// Enhanced location schema with strict climate data and cost validation
-export const insertLocationSchema = baseInsertLocationSchema.extend({
-  // Climate data validation with realistic ranges
+export const insertLocationSchema = z.object({
+  name: z.string().min(1),
+  country: z.string().min(1),
+  region: z.string().optional().nullable(),
   heatingDegreeDays: z.number()
     .min(0, "Heating degree days cannot be negative")
     .max(10000, "Heating degree days cannot exceed 10,000 (extreme arctic)")
@@ -141,8 +120,6 @@ export const insertLocationSchema = baseInsertLocationSchema.extend({
     .min(0, "Wind speed cannot be negative")
     .max(30, "Wind speed cannot exceed 30 m/s")
     .default(4.4),
-  
-  // Energy cost validation (pence/kWh or £/unit)
   gasCost: z.number()
     .min(0, "Gas cost cannot be negative")
     .max(100, "Gas cost cannot exceed 100 p/kWh"),
@@ -155,8 +132,6 @@ export const insertLocationSchema = baseInsertLocationSchema.extend({
   woodCost: z.number()
     .min(0, "Wood cost cannot be negative")
     .max(1000, "Wood cost cannot exceed £1000/tonne"),
-  
-  // Carbon factor validation (kgCO2/kWh or per unit)
   gasCarbon: z.number()
     .min(0, "Carbon factor cannot be negative")
     .max(1, "Gas carbon factor cannot exceed 1 kgCO2/kWh"),
@@ -169,28 +144,33 @@ export const insertLocationSchema = baseInsertLocationSchema.extend({
   woodCarbon: z.number()
     .min(0, "Carbon factor cannot be negative")
     .max(1, "Wood carbon factor cannot exceed 1 kgCO2/kg"),
+  buildingStandards: z.record(z.number()).default({}),
 });
 
-export const insertUpgradeRecommendationSchema = createInsertSchema(upgradeRecommendations).omit({
-  id: true,
+export const insertUpgradeRecommendationSchema = z.object({
+  assessmentId: z.string().min(1),
+  name: z.string().min(1),
+  description: z.string().min(1),
+  category: z.string().min(1),
+  priority: z.string().min(1),
+  cost: z.number().min(0),
+  annualSavings: z.number(),
+  carbonSavings: z.number(),
+  paybackYears: z.number().min(0),
+  energySavings: z.number(),
 });
 
-// Validation schema for calculation options
 export const calculationOptionsSchema = z.object({
   futureYear: z.number().int().min(2024).max(2100).optional(),
   baseYear: z.number().int().min(1990).max(2030).default(2024).optional(),
   decarbonizationRate: z.number().min(0).max(0.2).default(0.03).optional(),
 });
 
-export type Assessment = typeof assessments.$inferSelect;
 export type InsertAssessment = z.infer<typeof insertAssessmentSchema>;
-export type Location = typeof locations.$inferSelect;
 export type InsertLocation = z.infer<typeof insertLocationSchema>;
-export type UpgradeRecommendation = typeof upgradeRecommendations.$inferSelect;
 export type InsertUpgradeRecommendation = z.infer<typeof insertUpgradeRecommendationSchema>;
 export type CalculationOptions = z.infer<typeof calculationOptionsSchema>;
 
-// Fabric determinant options
 export const insulationOptions = [
   { value: "none", label: "None", description: "Not factored into calculation" },
   { value: "poor", label: "Poor (pre-83)", description: "Building standards prior to 1981" },
@@ -253,7 +233,6 @@ export const heatingTypeOptions = [
   { value: "storage", label: "Storage heaters", description: "Individual storage type heaters" },
 ];
 
-// Additional options for hot water and window size
 export const windowSizeOptions = [
   { value: "none", label: "None", description: "Not factored into calculation" },
   { value: "small", label: "Small (15%)", description: "Less than 15% glazing" },

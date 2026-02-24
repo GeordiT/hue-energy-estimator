@@ -1,7 +1,8 @@
-import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { useState, useCallback } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Assessment, Location } from "@shared/schema";
+import { storage } from "@/lib/storage-provider";
+import { calculateEnergyPerformance } from "@/lib/calculation-engine";
 import Header from "@/components/header";
 import FabricDeterminants from "@/components/fabric-determinants";
 import SystemDeterminants from "@/components/system-determinants";
@@ -51,35 +52,26 @@ export default function Home() {
   const queryClient = useQueryClient();
 
   const { data: locations = [] } = useQuery<Location[]>({
-    queryKey: ["/api/locations"],
+    queryKey: ["locations"],
+    queryFn: () => storage.getAllLocations(),
   });
 
-  const calculateMutation = useMutation({
-    mutationFn: async (data: { assessment: Assessment; locationId?: string }) => {
-      const response = await apiRequest("POST", "/api/calculate", data);
-      return response.json();
-    },
-    onSuccess: (results) => {
-      setCurrentAssessment(prev => ({
-        ...prev,
+  const handleAssessmentChange = useCallback((updates: Partial<Assessment>) => {
+    setCurrentAssessment(prev => {
+      const updated = { ...prev, ...updates };
+      const location = updated.locationId ? storage.getLocation(updated.locationId) : null;
+      const options = updated.futureYear ? { futureYear: updated.futureYear } : undefined;
+      const results = calculateEnergyPerformance(updated, location, options);
+
+      return {
+        ...updated,
         energyDemand: results.energyDemand,
         carbonEmissions: results.carbonEmissions,
         annualCost: results.annualCost,
         eiScore: results.eiScore,
-      }));
-    },
-  });
-
-  const handleAssessmentChange = (updates: Partial<Assessment>) => {
-    const updated = { ...currentAssessment, ...updates };
-    setCurrentAssessment(updated);
-    
-    // Trigger recalculation
-    calculateMutation.mutate({
-      assessment: updated,
-      locationId: updated.locationId || undefined,
+      };
     });
-  };
+  }, []);
 
   const tabs = [
     { key: "fabric" as TabType, label: "Fabric Determinants" },
@@ -94,9 +86,7 @@ export default function Home() {
       <Header />
       
       <div className="flex h-[calc(100vh-80px)]">
-        {/* Main Content */}
         <main className="flex-1 flex flex-col overflow-hidden">
-          {/* Tab Navigation */}
           <div className="bg-white border-b border-gray-200 px-6">
             <nav className="flex space-x-8">
               {tabs.map((tab) => (
@@ -115,7 +105,6 @@ export default function Home() {
             </nav>
           </div>
 
-          {/* Content Area */}
           <div className="flex-1 overflow-auto">
             <div className="p-6">
               {activeTab === "fabric" && (
@@ -152,7 +141,6 @@ export default function Home() {
           </div>
         </main>
 
-        {/* Secondary Controls Sidebar */}
         <SecondaryControls
           assessment={currentAssessment}
           onUpdate={handleAssessmentChange}
