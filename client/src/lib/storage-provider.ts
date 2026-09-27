@@ -6,101 +6,195 @@ function generateId(): string {
 
 const STORAGE_KEYS = {
   assessments: "hue_assessments",
+  currentAssessment: "hue_current_assessment",
   locations: "hue_locations",
   recommendations: "hue_recommendations",
   initialized: "hue_initialized",
 };
 
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 function readStore<T>(key: string): T[] {
+  let raw: string | null;
   try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
+    raw = localStorage.getItem(key);
+  } catch (error) {
+    throw new Error(`Unable to read ${key} from browser storage: ${getErrorMessage(error)}`);
   }
+
+  if (raw === null) return [];
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (error) {
+    throw new Error(`Saved ${key} data is invalid JSON: ${getErrorMessage(error)}`);
+  }
+
+  if (!Array.isArray(parsed)) {
+    throw new Error(`Saved ${key} data is invalid: expected an array.`);
+  }
+
+  return parsed as T[];
 }
 
 function writeStore<T>(key: string, data: T[]): void {
-  localStorage.setItem(key, JSON.stringify(data));
+  try {
+    localStorage.setItem(key, JSON.stringify(data));
+  } catch (error) {
+    throw new Error(`Unable to save ${key} to browser storage: ${getErrorMessage(error)}`);
+  }
+}
+
+function readCurrentAssessment(): Assessment | null {
+  let raw: string | null;
+  try {
+    raw = localStorage.getItem(STORAGE_KEYS.currentAssessment);
+  } catch (error) {
+    throw new Error(`Unable to read the current assessment from browser storage: ${getErrorMessage(error)}`);
+  }
+
+  if (raw === null) return null;
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (error) {
+    throw new Error(`Saved current assessment data is invalid JSON: ${getErrorMessage(error)}`);
+  }
+
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("Saved current assessment data is invalid.");
+  }
+
+  const saved = parsed as Record<string, unknown>;
+  if (typeof saved.id !== "string" || typeof saved.name !== "string") {
+    throw new Error("Saved current assessment data is missing required fields.");
+  }
+
+  const parseDate = (value: unknown, field: string): Date => {
+    const date = value instanceof Date
+      ? new Date(value.getTime())
+      : typeof value === "string" || typeof value === "number"
+        ? new Date(value)
+        : null;
+    if (!date || Number.isNaN(date.getTime())) {
+      throw new Error(`Saved current assessment has an invalid ${field} value.`);
+    }
+    return date;
+  };
+
+  return {
+    ...(saved as unknown as Assessment),
+    createdAt: parseDate(saved.createdAt, "createdAt"),
+    updatedAt: parseDate(saved.updatedAt, "updatedAt"),
+  };
+}
+
+function writeCurrentAssessment(assessment: Assessment): void {
+  try {
+    localStorage.setItem(STORAGE_KEYS.currentAssessment, JSON.stringify(assessment));
+  } catch (error) {
+    throw new Error(`Unable to save the current assessment to browser storage: ${getErrorMessage(error)}`);
+  }
 }
 
 function initializeDefaults(): void {
-  if (localStorage.getItem(STORAGE_KEYS.initialized)) return;
+  try {
+    if (localStorage.getItem(STORAGE_KEYS.initialized)) return;
 
-  const defaultLocations: Location[] = [
-    {
-      id: generateId(),
-      name: "Glasgow, Scotland",
-      country: "Scotland",
-      region: "Central Belt",
-      heatingDegreeDays: 2650,
-      coolingDegreeDays: 20,
-      solarRadiation: 950,
-      averageTemp: 8.5,
-      windSpeed: 4.4,
-      gasCost: 7.2,
-      electricityCost: 28.5,
-      oilCost: 85,
-      woodCost: 290,
-      gasCarbon: 0.184,
-      electricityCarbon: 0.233,
-      oilCarbon: 2.52,
-      woodCarbon: 0.025,
-      buildingStandards: {
-        wallUValue: 0.30,
-        roofUValue: 0.16,
-        floorUValue: 0.22,
-        windowUValue: 1.6,
+    const defaultLocations: Location[] = [
+      {
+        id: generateId(),
+        name: "Glasgow, Scotland",
+        country: "Scotland",
+        region: "Central Belt",
+        heatingDegreeDays: 2650,
+        coolingDegreeDays: 20,
+        solarRadiation: 950,
+        averageTemp: 8.5,
+        windSpeed: 4.4,
+        gasCost: 7.2,
+        electricityCost: 28.5,
+        oilCost: 85,
+        woodCost: 290,
+        gasCarbon: 0.184,
+        electricityCarbon: 0.233,
+        oilCarbon: 2.52,
+        woodCarbon: 0.025,
+        buildingStandards: {
+          wallUValue: 0.30,
+          roofUValue: 0.16,
+          floorUValue: 0.22,
+          windowUValue: 1.6,
+        },
+        createdAt: new Date(),
+        updatedAt: new Date(),
       },
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
-    {
-      id: generateId(),
-      name: "London, England",
-      country: "England",
-      region: "South East",
-      heatingDegreeDays: 2280,
-      coolingDegreeDays: 85,
-      solarRadiation: 1100,
-      averageTemp: 11.2,
-      windSpeed: 3.8,
-      gasCost: 7.5,
-      electricityCost: 30.2,
-      oilCost: 88,
-      woodCost: 310,
-      gasCarbon: 0.184,
-      electricityCarbon: 0.233,
-      oilCarbon: 2.52,
-      woodCarbon: 0.025,
-      buildingStandards: {
-        wallUValue: 0.28,
-        roofUValue: 0.16,
-        floorUValue: 0.22,
-        windowUValue: 1.6,
+      {
+        id: generateId(),
+        name: "London, England",
+        country: "England",
+        region: "South East",
+        heatingDegreeDays: 2280,
+        coolingDegreeDays: 85,
+        solarRadiation: 1100,
+        averageTemp: 11.2,
+        windSpeed: 3.8,
+        gasCost: 7.5,
+        electricityCost: 30.2,
+        oilCost: 88,
+        woodCost: 310,
+        gasCarbon: 0.184,
+        electricityCarbon: 0.233,
+        oilCarbon: 2.52,
+        woodCarbon: 0.025,
+        buildingStandards: {
+          wallUValue: 0.28,
+          roofUValue: 0.16,
+          floorUValue: 0.22,
+          windowUValue: 1.6,
+        },
+        createdAt: new Date(),
+        updatedAt: new Date(),
       },
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
-  ];
+    ];
 
-  writeStore(STORAGE_KEYS.locations, defaultLocations);
-  writeStore(STORAGE_KEYS.assessments, []);
-  writeStore(STORAGE_KEYS.recommendations, []);
-  localStorage.setItem(STORAGE_KEYS.initialized, "true");
+    // Seed only keys that are absent; an interrupted prior initialization must
+    // not replace data that is already present in the browser.
+    if (localStorage.getItem(STORAGE_KEYS.locations) === null) {
+      writeStore(STORAGE_KEYS.locations, defaultLocations);
+    }
+    if (localStorage.getItem(STORAGE_KEYS.assessments) === null) {
+      writeStore(STORAGE_KEYS.assessments, []);
+    }
+    if (localStorage.getItem(STORAGE_KEYS.recommendations) === null) {
+      writeStore(STORAGE_KEYS.recommendations, []);
+    }
+    localStorage.setItem(STORAGE_KEYS.initialized, "true");
+  } catch (error) {
+    throw new Error(`Unable to initialize browser storage: ${getErrorMessage(error)}`);
+  }
 }
 
-initializeDefaults();
-
 export const storage = {
+  getCurrentAssessment(): Assessment | null {
+    return readCurrentAssessment();
+  },
+
+  saveCurrentAssessment(assessment: Assessment): void {
+    writeCurrentAssessment(assessment);
+  },
+
   getAssessment(id: string): Assessment | null {
     const all = readStore<Assessment>(STORAGE_KEYS.assessments);
     return all.find(a => a.id === id) ?? null;
   },
 
   getAllAssessments(): Assessment[] {
+    initializeDefaults();
     return readStore<Assessment>(STORAGE_KEYS.assessments);
   },
 
@@ -185,6 +279,7 @@ export const storage = {
   },
 
   getAllLocations(): Location[] {
+    initializeDefaults();
     return readStore<Location>(STORAGE_KEYS.locations);
   },
 

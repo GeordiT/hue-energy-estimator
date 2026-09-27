@@ -1,3 +1,4 @@
+import React from "react";
 import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
 import type { Assessment, Location } from "@shared/schema";
 
@@ -170,7 +171,7 @@ interface ReportTemplateProps {
 }
 
 export default function ReportTemplate({ assessment, location, recommendations }: ReportTemplateProps) {
-  const eiScore = assessment.eiScore || 0;
+  const eiScore = assessment.eiScore ?? 0;
   const ratingLetter = getRatingLetter(eiScore);
   const ratingColor = getRatingColor(eiScore);
   const currentDate = new Date().toLocaleDateString("en-GB", {
@@ -193,21 +194,21 @@ export default function ReportTemplate({ assessment, location, recommendations }
           <View style={styles.summaryBox}>
             <Text style={styles.summaryLabel}>Energy Demand</Text>
             <Text style={styles.summaryValue}>
-              {assessment.energyDemand?.toLocaleString() || "0"}
+              {assessment.energyDemand?.toLocaleString() ?? "N/A"}
             </Text>
             <Text style={styles.summaryUnit}>kWh/year</Text>
           </View>
           <View style={styles.summaryBox}>
             <Text style={styles.summaryLabel}>Carbon Emissions</Text>
             <Text style={styles.summaryValue}>
-              {assessment.carbonEmissions?.toLocaleString() || "0"}
+              {assessment.carbonEmissions?.toLocaleString() ?? "N/A"}
             </Text>
             <Text style={styles.summaryUnit}>kgCO2/year</Text>
           </View>
           <View style={styles.summaryBox}>
             <Text style={styles.summaryLabel}>Annual Cost</Text>
             <Text style={styles.summaryValue}>
-              £{assessment.annualCost?.toLocaleString() || "0"}
+              {assessment.annualCost == null ? "N/A" : `£${assessment.annualCost.toLocaleString()}`}
             </Text>
             <Text style={styles.summaryUnit}>per year</Text>
           </View>

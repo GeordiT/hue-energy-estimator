@@ -159,13 +159,13 @@ export function calculateEnergyPerformance(
   const totalHeatLoss = fabricLoss + ventilationLoss;
   
   // Use location heating degree days or default
-  const heatingDegreeDays = location?.heatingDegreeDays || 2650;
+  const heatingDegreeDays = location?.heatingDegreeDays ?? 2650;
   
   // Calculate space heating demand (kWh/year)
   const spaceHeating = (totalHeatLoss * heatingDegreeDays * 24) / 1000; // Convert W to kWh
   
   // Cooling demand calculation based on cooling degree days
-  const coolingDegreeDays = location?.coolingDegreeDays || 0;
+  const coolingDegreeDays = location?.coolingDegreeDays ?? 0;
   const coolingDemand = coolingDegreeDays > 0 ? (coolingDegreeDays * floorArea * 0.025) : 0; // kWh/year
   
   // Hot water demand (simplified calculation)

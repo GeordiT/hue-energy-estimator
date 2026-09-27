@@ -24,8 +24,8 @@ export default function LocationEditor({ location, onLocationCreated, trigger }:
   const [open, setOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isFetchingClimate, setIsFetchingClimate] = useState(false);
-  const [latitude, setLatitude] = useState<string>("55.86");
-  const [longitude, setLongitude] = useState<string>("-4.25");
+  const [latitude, setLatitude] = useState<string>("");
+  const [longitude, setLongitude] = useState<string>("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -90,14 +90,14 @@ export default function LocationEditor({ location, onLocationCreated, trigger }:
     setIsFetchingClimate(true);
     try {
       const climate = await fetchSiteClimate(lat, lng);
-      form.setValue("heatingDegreeDays", climate.heatingDegreeDays);
-      form.setValue("coolingDegreeDays", climate.coolingDegreeDays);
-      form.setValue("solarRadiation", climate.solarRadiation);
-      form.setValue("averageTemp", climate.averageTemp);
-      form.setValue("windSpeed", climate.windSpeed);
+      form.setValue("heatingDegreeDays", climate.heatingDegreeDays, { shouldDirty: true, shouldValidate: true });
+      form.setValue("coolingDegreeDays", climate.coolingDegreeDays, { shouldDirty: true, shouldValidate: true });
+      form.setValue("solarRadiation", climate.solarRadiation, { shouldDirty: true, shouldValidate: true });
+      form.setValue("averageTemp", climate.averageTemp, { shouldDirty: true, shouldValidate: true });
+      form.setValue("windSpeed", climate.windSpeed, { shouldDirty: true, shouldValidate: true });
       toast({
         title: "Climate data fetched",
-        description: `HDD: ${climate.heatingDegreeDays}, CDD: ${climate.coolingDegreeDays}, Solar: ${climate.solarRadiation} kWh/m², Avg Temp: ${climate.averageTemp}°C (base 18.3°C)`,
+        description: `HDD: ${climate.heatingDegreeDays}, CDD: ${climate.coolingDegreeDays}, Solar: ${climate.solarRadiation} kWh/m², Avg Temp: ${climate.averageTemp}°C (base 18.3°C). Save the location to apply these values.`,
       });
     } catch (err) {
       toast({
@@ -353,7 +353,7 @@ export default function LocationEditor({ location, onLocationCreated, trigger }:
                         step="0.01"
                         value={latitude}
                         onChange={(e) => setLatitude(e.target.value)}
-                        placeholder="e.g. 55.86"
+                         placeholder="e.g. 40.71"
                         className="bg-white"
                       />
                     </div>
@@ -364,7 +364,7 @@ export default function LocationEditor({ location, onLocationCreated, trigger }:
                         step="0.01"
                         value={longitude}
                         onChange={(e) => setLongitude(e.target.value)}
-                        placeholder="e.g. -4.25"
+                         placeholder="e.g. -74.01"
                         className="bg-white"
                       />
                     </div>
@@ -379,7 +379,7 @@ export default function LocationEditor({ location, onLocationCreated, trigger }:
                     </Button>
                   </div>
                   <p className="text-xs text-blue-700 mt-2">
-                    Uses Open-Meteo archive API to calculate HDD/CDD with 18.3°C base temperature, plus solar radiation, average temp, and wind speed from the last full year of data.
+                     Enter site coordinates and fetch the previous calendar year's Open-Meteo data. HDD/CDD use an 18.3°C base. Save the location to apply the results.
                   </p>
                 </div>
 

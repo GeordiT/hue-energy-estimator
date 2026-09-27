@@ -9,13 +9,14 @@ interface ClimateResult {
 }
 
 export async function fetchSiteClimate(latitude: number, longitude: number): Promise<ClimateResult> {
-  const endDate = new Date();
-  endDate.setFullYear(endDate.getFullYear() - 1);
-  const startDate = new Date(endDate);
-  startDate.setFullYear(startDate.getFullYear() - 1);
+  if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90 ||
+      !Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
+    throw new Error("Invalid latitude or longitude");
+  }
 
-  const startStr = startDate.toISOString().split("T")[0];
-  const endStr = endDate.toISOString().split("T")[0];
+  const year = new Date().getUTCFullYear() - 1;
+  const startStr = `${year}-01-01`;
+  const endStr = `${year}-12-31`;
 
   const url = new URL("https://archive-api.open-meteo.com/v1/archive");
   url.searchParams.set("latitude", latitude.toString());
@@ -55,13 +56,17 @@ export async function fetchSiteClimate(latitude: number, longitude: number): Pro
     }
   }
 
-  const averageTemp = validDays > 0 ? Math.round((tempSum / validDays) * 10) / 10 : 8.5;
+  if (validDays === 0) {
+    throw new Error("No valid temperature data returned from Open-Meteo");
+  }
+  const averageTemp = Math.round((tempSum / validDays) * 10) / 10;
 
   let totalSolar = 0;
   for (const s of dailySolar) {
     if (s != null) totalSolar += s;
   }
-  const solarRadiation = Math.round(totalSolar / 1000);
+  // Open-Meteo reports shortwave_radiation_sum in MJ/m²; 1 kWh = 3.6 MJ.
+  const solarRadiation = Math.round(totalSolar / 3.6);
 
   let windSum = 0;
   let windCount = 0;

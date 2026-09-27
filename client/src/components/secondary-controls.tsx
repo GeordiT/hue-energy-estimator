@@ -9,9 +9,10 @@ import LocationEditor from "./location-editor";
 interface SecondaryControlsProps {
   assessment: Assessment;
   onUpdate: (updates: Partial<Assessment>) => void;
+  onSaveCurrentSettings: () => void;
 }
 
-export default function SecondaryControls({ assessment, onUpdate }: SecondaryControlsProps) {
+export default function SecondaryControls({ assessment, onUpdate, onSaveCurrentSettings }: SecondaryControlsProps) {
   // Calculate fabric quality score (0-100)
   const fabricScore = (() => {
     const insulationScore = {
@@ -131,7 +132,12 @@ export default function SecondaryControls({ assessment, onUpdate }: SecondaryCon
           <Button variant="outline" className="w-full text-primary border-primary hover:bg-blue-50">
             Load Preset Configuration
           </Button>
-          <Button variant="outline" className="w-full text-secondary border-secondary hover:bg-green-50">
+          <Button
+            variant="outline"
+            className="w-full text-secondary border-secondary hover:bg-green-50"
+            onClick={onSaveCurrentSettings}
+            title="Save the current assessment to this browser now. Edits are also saved automatically."
+          >
             Save Current Settings
           </Button>
           <Button variant="outline" className="w-full">

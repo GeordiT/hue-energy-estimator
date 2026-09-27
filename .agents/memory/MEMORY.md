@@ -1,0 +1,1 @@
+- [GitHub history sync](github-history-sync.md) — earlier API-based uploads may leave GitHub main ahead of or divergent from the workspace's local history.

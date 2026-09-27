@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Assessment, Location } from "@shared/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -5,8 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Zap, Leaf, DollarSign, Star, Printer, FileText } from "lucide-react";
 import { generateUpgradeRecommendations } from "@/lib/calculation-engine";
-import { pdf } from "@react-pdf/renderer";
-import ReportTemplate from "./report-template";
+import { downloadAssessmentPdf } from "@/lib/pdf-export";
+import { useToast } from "@/hooks/use-toast";
 
 interface ResultsAnalysisProps {
   assessment: Assessment;
@@ -43,6 +44,8 @@ const getPriorityColor = (priority: string) => {
 };
 
 export default function ResultsAnalysis({ assessment, locations }: ResultsAnalysisProps) {
+  const [isExporting, setIsExporting] = useState(false);
+  const { toast } = useToast();
   const location = locations.find(loc => loc.id === assessment.locationId);
   const recommendations = generateUpgradeRecommendations(assessment, location || null);
   
@@ -52,6 +55,21 @@ export default function ResultsAnalysis({ assessment, locations }: ResultsAnalys
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleDownloadPdf = async () => {
+    setIsExporting(true);
+    try {
+      await downloadAssessmentPdf(assessment, location ?? null);
+    } catch (error) {
+      toast({
+        title: "Could not export PDF",
+        description: error instanceof Error ? error.message : "An unexpected error occurred.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const currentDate = new Date().toLocaleDateString('en-GB', {
@@ -72,6 +90,15 @@ export default function ResultsAnalysis({ assessment, locations }: ResultsAnalys
 
       {/* Print Button - Hidden in print */}
       <div className="flex justify-end gap-2 no-print">
+        <Button
+          type="button"
+          onClick={handleDownloadPdf}
+          disabled={isExporting}
+          data-testid="button-download-pdf"
+        >
+          <FileText className="w-4 h-4 mr-2" />
+          {isExporting ? "Generating PDF..." : "Download PDF"}
+        </Button>
         <Button 
           onClick={handlePrint} 
           variant="outline"
