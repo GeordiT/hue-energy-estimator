@@ -1,0 +1,84 @@
+Here is an optimized, targeted prompt designed for your development agent to perform a complete pre-deployment audit. It addresses build pipeline validation, routing, asset resolution, and the specific functional bugs discovered during UAT (Open-Meteo state-binding and PDF generation).
+
+---
+
+# Developer Agent Prompt: GitHub Pages Deployment & Functional Readiness Audit
+
+**Role:** Lead Frontend Architect & Systems Auditor
+
+**Task:** Conduct a comprehensive codebase and build infrastructure audit to ensure 100% readiness for static deployment on GitHub Pages, while fixing identified functional regressions.
+
+---
+
+## Phase 1: Deployment & Build Infrastructure Audit
+
+Audit the build outputs and routing mechanics to guarantee the site builds cleanly without server-side dependencies.
+
+1. **Vite Build Verification:**
+* Inspect `vite.config.ts`. Confirm `base` is explicitly set to `'/hue-energy-estimator/'`.
+* Run `npx vite build` locally and verify the output output directory (`dist` or `dist/public`).
+* Verify that no imports, dynamic requires, or environment configurations rely on a running Express server or Node.js runtime.
+
+
+2. **Routing & Asset Asset Paths:**
+* Confirm that client-side routing in `App.tsx` strictly uses hash location (`useHashLocation` in `wouter` or `HashRouter` in `react-router-dom`).
+* Audit all static asset paths (images, stylesheets, icons) to ensure relative referencing that resolves correctly under the `/hue-energy-estimator/` subpath.
+
+
+3. **CI/CD Workflow Check:**
+* Validate that `.github/workflows/deploy.yml` targets the correct build output folder (`dist`).
+
+
+
+---
+
+## Phase 2: Open-Meteo Climate Logic & State Audit
+
+UAT revealed that fetching climate data for distinct locations (e.g., New York vs. Miami) yielded identical average temperatures and degree days.
+
+1. **Input & API Call Binding:**
+* Audit `client/src/components/location-editor.tsx`. Verify that clicking **"Fetch Site Climate"** dynamically passes the active `latitude` and `longitude` input values into the Open-Meteo API URL query parameters.
+* Check for hardcoded fallback coordinates or static state initialization that might override user input.
+
+
+2. **Data Parsing & Calculation Engine Sync:**
+* Confirm that the API response (`data.daily.temperature_2m_mean`) is parsed correctly and that HDD/CDD calculations execute properly (using standard base temperature of 18.3°C / 65°F).
+* Ensure that once new values are fetched, `form.setValue` or state dispatches update both the UI form fields **and** the active `Location` record passed to `client/src/lib/calculation-engine.ts`.
+* Log/verify that selecting Miami generates high Cooling Degree Days (CDD) and near-zero Heating Degree Days (HDD), whereas New York yields significant HDD.
+
+
+
+---
+
+## Phase 3: Export PDF Functionality Audit
+
+UAT revealed that the **"Export PDF / Print Passport"** button is completely non-responsive on click.
+
+1. **Template & Render Validation:**
+* Inspect `client/src/components/ReportTemplate.tsx` and its integration in `client/src/components/results-analysis.tsx`.
+* Ensure `@react-pdf/renderer` or the print fallback component is correctly initialized and wrapped in a safety check to prevent rendering prior to assessment calculation completion.
+* Add fallback guards (e.g., `results?.energyIndex ?? 'N/A'`) to prevent silent component crashes caused by undefined properties during rendering.
+
+
+2. **Event & Blob Handling:**
+* Verify that the button click event correctly triggers document generation or window print action without throwing silent console errors or web worker conflicts.
+
+
+
+---
+
+## Phase 4: Storage Provider Audit
+
+1. **LocalStorage Integrity:**
+* Confirm `client/src/lib/storage-provider.ts` handles initial seed locations correctly if `localStorage` is empty.
+* Verify that assessments created or edited persist reliably across browser reloads without referencing `/api/assessments` or `/api/locations`.
+
+
+
+---
+
+## Deliverables Required
+
+1. Fix any bugs discovered during the audit (specifically the Open-Meteo input bindings and PDF generation handler).
+2. Successfully execute `npm run build` with zero errors.
+3. Provide a summary log of changes made and confirm deployment readiness.
